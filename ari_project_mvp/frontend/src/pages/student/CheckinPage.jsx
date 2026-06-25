@@ -104,7 +104,7 @@ export default function CheckinPage() {
         <div className="flex-between" style={{ marginBottom: 12 }}>
           <div>
             <div className="section-title">예약 좌석: {reservation.seat_number || '—'}</div>
-            <div className="text-muted">{reservation.location} · {reservation.seat_type === 'bed' ? '침대' : '의자'}</div>
+            <div className="text-muted">{reservation.location} · 침대</div>
           </div>
           <div className="text-center">
             <div className="text-muted" style={{ fontSize: '.82rem' }}>체크인 마감</div>
@@ -115,7 +115,7 @@ export default function CheckinPage() {
         <div className="qr-box">
           <div className="qr-icon">📱</div>
           <p>
-            <strong>현장 침대/좌석에 부착된 QR을 스캔하세요</strong>
+            <strong>현장 침대에 부착된 QR을 스캔하세요</strong>
           </p>
           {error && <div className="alert alert-error" style={{ textAlign: 'left' }}>{error}</div>}
           <form onSubmit={submit}>

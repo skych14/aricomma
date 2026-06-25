@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class SeatCreate(BaseModel):
     seat_number: str
-    seat_type: str  # chair | bed
+    seat_type: str  # bed
     location: str
 
 

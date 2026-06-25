@@ -4,7 +4,7 @@ import { reservationApi, seatApi } from '../../api/index.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 
 const STATUS_LABEL = { available: '이용 가능', reserved: '예약 중', occupied: '이용 중', inactive: '비활성' }
-const SEAT_ICON = { bed: '🛏️', chair: '🪑' }
+const SEAT_ICON = { bed: '🛏️' }
 
 export default function SeatsPage() {
   const { user } = useAuth()
@@ -32,7 +32,7 @@ export default function SeatsPage() {
     if (seat.current_status !== 'available') return
     if (!user?.is_verified) { setError('학생 인증이 필요합니다'); return }
     if (user?.is_suspended) { setError('계정이 정지 상태입니다'); return }
-    if (!confirm(`${seat.seat_number} (${SEAT_ICON[seat.seat_type] || ''} ${seat.seat_type}) 좌석을 예약하시겠습니까?\n예약 후 10분 내에 현장 QR을 스캔하여 체크인해야 합니다.`)) return
+    if (!confirm(`${seat.seat_number} (🛏️ 침대) 좌석을 예약하시겠습니까?\n예약 후 10분 내에 현장 QR을 스캔하여 체크인해야 합니다.`)) return
 
     setError(''); setMsg(''); setReserving(seat.id)
     try {
@@ -95,7 +95,7 @@ export default function SeatsPage() {
                       <div className="seat-number">
                         {SEAT_ICON[seat.seat_type] || ''} {seat.seat_number}
                       </div>
-                      <div className="seat-type">{seat.seat_type === 'bed' ? '침대' : '의자'}</div>
+                      <div className="seat-type">침대</div>
                       <div className="seat-location" style={{ marginTop: 6 }}>
                         <span className={`badge badge-${seat.current_status}`}>
                           {STATUS_LABEL[seat.current_status]}
@@ -111,7 +111,7 @@ export default function SeatsPage() {
       )}
 
       <div className="alert alert-info" style={{ marginTop: 8, fontSize: '.82rem' }}>
-        좌석 예약 후 <strong>10분 내</strong>에 현장 침대/좌석에 부착된 QR을 스캔하여 체크인해야 합니다.
+        좌석 예약 후 <strong>10분 내</strong>에 현장 침대에 부착된 QR을 스캔하여 체크인해야 합니다.
         체크인하지 않으면 예약이 자동으로 만료됩니다.
       </div>
     </div>

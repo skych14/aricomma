@@ -177,11 +177,7 @@ function SeatsTab() {
         <form onSubmit={handleCreate} className="flex gap-2" style={{ flexWrap: 'wrap' }}>
           <input className="form-input" style={{ width: 100 }} placeholder="번호 (A01)" value={form.seat_number}
             onChange={e => setForm({ ...form, seat_number: e.target.value })} required />
-          <select className="form-input" style={{ width: 110 }} value={form.seat_type}
-            onChange={e => setForm({ ...form, seat_type: e.target.value })}>
-            <option value="bed">침대(bed)</option>
-            <option value="chair">의자(chair)</option>
-          </select>
+          <span className="form-input" style={{ width: 110, display: 'inline-flex', alignItems: 'center', background: 'var(--surface)', cursor: 'default' }}>🛏️ 침대(bed)</span>
           <input className="form-input" style={{ flex: 1, minWidth: 150 }} placeholder="위치 (1층 좌측)" value={form.location}
             onChange={e => setForm({ ...form, location: e.target.value })} required />
           <button className="btn btn-primary">추가</button>
@@ -198,7 +194,7 @@ function SeatsTab() {
               {seats.map(s => (
                 <tr key={s.id}>
                   <td><strong>{s.seat_number}</strong></td>
-                  <td>{s.seat_type === 'bed' ? '🛏️ 침대' : '🪑 의자'}</td>
+                  <td>🛏️ 침대</td>
                   <td>{s.location}</td>
                   <td><span className={`badge badge-${s.current_status}`}>{statusLabel(s.current_status)}</span></td>
                   <td>
