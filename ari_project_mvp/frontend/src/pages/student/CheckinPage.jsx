@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { reservationApi } from '../../api/index.js'
-import { fmtDatetime } from '../../utils/helpers.js'
+import { fmtDatetime, parseUTC } from '../../utils/helpers.js'
 
 function Countdown({ expiresAt }) {
   const [secs, setSecs] = useState(0)
 
   useEffect(() => {
     const tick = () => {
-      const diff = Math.max(0, Math.floor((new Date(expiresAt) - Date.now()) / 1000))
+      const diff = Math.max(0, Math.floor((parseUTC(expiresAt) - Date.now()) / 1000))
       setSecs(diff)
     }
     tick()

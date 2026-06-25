@@ -1,15 +1,22 @@
+// Backend serializes UTC datetimes without 'Z', so browsers parse them as local time.
+// Append 'Z' when no timezone info is present to force correct UTC interpretation.
+export function parseUTC(iso) {
+  if (!iso) return new Date(NaN)
+  return /[Z+]/.test(iso) ? new Date(iso) : new Date(iso + 'Z')
+}
+
 export function fmtDatetime(iso) {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleString('ko-KR', {
+  return parseUTC(iso).toLocaleString('ko-KR', {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Seoul',
   })
 }
 
 export function fmtDate(iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('ko-KR')
+  return parseUTC(iso).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
 }
 
 const STATUS_KO = {
