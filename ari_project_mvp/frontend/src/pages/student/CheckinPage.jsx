@@ -101,7 +101,7 @@ export default function CheckinPage() {
       <h1 className="page-title">QR 체크인</h1>
 
       <div className="card">
-        <div className="flex-between" style={{ marginBottom: 12 }}>
+        <div className="flex-between" style={{ marginBottom: 12, alignItems: 'flex-start' }}>
           <div>
             <div className="section-title">예약 좌석: {reservation.seat_number || '—'}</div>
             <div className="text-muted">{reservation.location} · 침대</div>
