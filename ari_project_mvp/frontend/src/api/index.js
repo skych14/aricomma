@@ -21,7 +21,7 @@ export const verificationApi = {
   adminList: (status) =>
     client.get('/api/admin/verifications', { params: status ? { status } : {} }),
   adminGet: (id) => client.get(`/api/admin/verifications/${id}`),
-  adminFileUrl: (id) => `${client.defaults.baseURL}/api/admin/verifications/${id}/file`,
+  adminFetchFile: (id) => client.get(`/api/admin/verifications/${id}/file`, { responseType: 'blob' }),
   adminReview: (id, data) => client.put(`/api/admin/verifications/${id}`, data),
 }
 

@@ -12,6 +12,18 @@ function VerificationsTab() {
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
+  const openFile = async (id) => {
+    try {
+      const res = await verificationApi.adminFetchFile(id)
+      const url = URL.createObjectURL(res.data)
+      const win = window.open(url, '_blank')
+      if (win) win.addEventListener('load', () => URL.revokeObjectURL(url), { once: true })
+      else URL.revokeObjectURL(url)
+    } catch (e) {
+      setError('파일을 불러올 수 없습니다: ' + (e.response?.status === 404 ? '파일 없음' : errMsg(e)))
+    }
+  }
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -60,8 +72,7 @@ function VerificationsTab() {
                   <td>{r.user_student_id}</td>
                   <td><span className={`badge ${statusBadgeClass(r.status)}`}>{statusLabel(r.status)}</span></td>
                   <td>
-                    <a href={verificationApi.adminFileUrl(r.id)} target="_blank" rel="noreferrer"
-                      className="btn btn-sm btn-ghost">파일 보기</a>
+                    <button className="btn btn-sm btn-ghost" onClick={() => openFile(r.id)}>파일 보기</button>
                   </td>
                   <td>
                     {r.status === 'pending' && (
@@ -85,8 +96,7 @@ function VerificationsTab() {
           <div className="card" style={{ width: 480, maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="card-title">인증 검토 — {selected.user_name} ({selected.user_student_id})</div>
             <div className="mb-4">
-              <a href={verificationApi.adminFileUrl(selected.id)} target="_blank" rel="noreferrer"
-                className="btn btn-outline btn-sm">📄 제출 파일 열기</a>
+              <button className="btn btn-outline btn-sm" onClick={() => openFile(selected.id)}>📄 제출 파일 열기</button>
             </div>
             {selected.ocr_result && (() => {
               try {
