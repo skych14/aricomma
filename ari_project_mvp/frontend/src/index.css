@@ -163,6 +163,8 @@ a:hover { text-decoration: underline; }
 .badge-available { background: var(--success-light); color: var(--success); }
 .badge-reserved { background: var(--warning-light); color: var(--warning); }
 .badge-occupied { background: var(--danger-light); color: var(--danger); }
+.badge-male { background: #dbeafe; color: #1d4ed8; }
+.badge-female { background: #fce7f3; color: #be185d; }
 
 /* ── Alert ──────────────────────────────────────────────── */
 .alert { padding: 12px 14px; border-radius: var(--radius); font-size: .9rem; margin-bottom: 12px; }

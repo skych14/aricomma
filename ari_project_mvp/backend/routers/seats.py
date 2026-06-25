@@ -50,6 +50,7 @@ def list_seats(
                 id=s.id,
                 seat_number=s.seat_number,
                 seat_type=s.seat_type,
+                room_gender=s.room_gender,
                 location=s.location,
                 is_active=s.is_active,
                 current_status=_seat_status(s, db),
@@ -74,6 +75,7 @@ def admin_list_seats(
                 id=s.id,
                 seat_number=s.seat_number,
                 seat_type=s.seat_type,
+                room_gender=s.room_gender,
                 location=s.location,
                 is_active=s.is_active,
                 current_status=_seat_status(s, db),
@@ -98,6 +100,7 @@ def create_seat(
         id=str(uuid.uuid4()),
         seat_number=body.seat_number,
         seat_type=body.seat_type,
+        room_gender=body.room_gender,
         location=body.location,
         qr_token=str(uuid.uuid4()),
         created_at=datetime.utcnow(),
@@ -113,7 +116,7 @@ def create_seat(
         actor_id=current_admin.id,
         target_type="seat",
         target_id=seat.id,
-        detail={"seat_number": seat.seat_number, "seat_type": seat.seat_type},
+        detail={"seat_number": seat.seat_number, "seat_type": seat.seat_type, "room_gender": seat.room_gender},
         ip_address=request.client.host if request.client else None,
         commit=True,
     )
@@ -121,6 +124,7 @@ def create_seat(
         id=seat.id,
         seat_number=seat.seat_number,
         seat_type=seat.seat_type,
+        room_gender=seat.room_gender,
         location=seat.location,
         is_active=seat.is_active,
         current_status="available",
@@ -145,6 +149,8 @@ def update_seat(
         seat.seat_number = body.seat_number
     if body.seat_type is not None:
         seat.seat_type = body.seat_type
+    if body.room_gender is not None:
+        seat.room_gender = body.room_gender
     if body.location is not None:
         seat.location = body.location
     if body.is_active is not None:
@@ -166,6 +172,7 @@ def update_seat(
         id=seat.id,
         seat_number=seat.seat_number,
         seat_type=seat.seat_type,
+        room_gender=seat.room_gender,
         location=seat.location,
         is_active=seat.is_active,
         current_status=_seat_status(seat, db),

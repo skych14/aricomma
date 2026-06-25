@@ -11,7 +11,8 @@ class Seat(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     seat_number = Column(String, unique=True, nullable=False, index=True)
-    seat_type = Column(String, nullable=False)  # chair | bed
+    seat_type = Column(String, nullable=False)  # bed
+    room_gender = Column(String, nullable=False, default="male")  # male | female
     location = Column(String, nullable=False)
     # 현장 침대/좌석에 물리적으로 부착되는 고정 QR 값
     # 실제 운영: 이 값으로 QR 이미지 생성 후 인쇄해서 좌석에 부착

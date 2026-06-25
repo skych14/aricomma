@@ -14,6 +14,7 @@ export default function SeatsPage() {
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
   const [reserving, setReserving] = useState(null)
+  const [genderTab, setGenderTab] = useState('male')
 
   const load = async () => {
     try {
@@ -46,14 +47,17 @@ export default function SeatsPage() {
     }
   }
 
-  const byLocation = seats.reduce((acc, s) => {
+  const genderSeats = seats.filter(s => s.room_gender === genderTab)
+  const byLocation = genderSeats.reduce((acc, s) => {
     if (!acc[s.location]) acc[s.location] = []
     acc[s.location].push(s)
     return acc
   }, {})
 
-  const available = seats.filter(s => s.current_status === 'available').length
-  const total = seats.length
+  const maleAvailable = seats.filter(s => s.room_gender === 'male' && s.current_status === 'available').length
+  const femaleAvailable = seats.filter(s => s.room_gender === 'female' && s.current_status === 'available').length
+  const maleTotal = seats.filter(s => s.room_gender === 'male').length
+  const femaleTotal = seats.filter(s => s.room_gender === 'female').length
 
   return (
     <div>
@@ -65,8 +69,34 @@ export default function SeatsPage() {
       {msg && <div className="alert alert-success">{msg}</div>}
       {error && <div className="alert alert-error">{error}</div>}
 
+      {/* 성별 탭 */}
+      <div className="tabs">
+        <button
+          className={`tab ${genderTab === 'male' ? 'active' : ''}`}
+          onClick={() => setGenderTab('male')}
+        >
+          🚹 남학우실
+          <span style={{ marginLeft: 6, fontSize: '.75rem', fontWeight: 400 }}>
+            ({maleAvailable}/{maleTotal})
+          </span>
+        </button>
+        <button
+          className={`tab ${genderTab === 'female' ? 'active' : ''}`}
+          onClick={() => setGenderTab('female')}
+        >
+          🚺 여학우실
+          <span style={{ marginLeft: 6, fontSize: '.75rem', fontWeight: 400 }}>
+            ({femaleAvailable}/{femaleTotal})
+          </span>
+        </button>
+      </div>
+
       <div className="flex-between mb-4">
-        <div className="text-muted">전체 {total}석 중 <strong style={{ color: 'var(--success)' }}>{available}석</strong> 이용 가능</div>
+        <div className="text-muted">
+          이용 가능 <strong style={{ color: 'var(--success)' }}>
+            {genderTab === 'male' ? maleAvailable : femaleAvailable}석
+          </strong> / 전체 {genderTab === 'male' ? maleTotal : femaleTotal}석
+        </div>
         <div className="flex gap-2" style={{ fontSize: '.82rem' }}>
           <span className="badge badge-available">이용 가능</span>
           <span className="badge badge-reserved">예약 중</span>
@@ -76,6 +106,8 @@ export default function SeatsPage() {
 
       {loading ? (
         <div className="loading-box"><span className="spinner" /> 좌석 정보 불러오는 중...</div>
+      ) : Object.keys(byLocation).length === 0 ? (
+        <div className="text-muted" style={{ textAlign: 'center', padding: '32px 0' }}>좌석 정보가 없습니다.</div>
       ) : (
         Object.entries(byLocation).map(([loc, locSeats]) => (
           <div key={loc} className="card">

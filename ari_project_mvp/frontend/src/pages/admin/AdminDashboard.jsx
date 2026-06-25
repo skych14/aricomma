@@ -132,7 +132,7 @@ function VerificationsTab() {
 function SeatsTab() {
   const [seats, setSeats] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ seat_number: '', seat_type: 'bed', location: '' })
+  const [form, setForm] = useState({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '' })
   const [editTarget, setEditTarget] = useState(null)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
@@ -151,7 +151,7 @@ function SeatsTab() {
     try {
       await seatApi.create(form)
       setMsg('좌석이 추가되었습니다')
-      setForm({ seat_number: '', seat_type: 'bed', location: '' })
+      setForm({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '' })
       load()
     } catch (e) { setError(errMsg(e)) }
   }
@@ -177,8 +177,13 @@ function SeatsTab() {
         <form onSubmit={handleCreate} className="flex gap-2" style={{ flexWrap: 'wrap' }}>
           <input className="form-input" style={{ width: 100 }} placeholder="번호 (A01)" value={form.seat_number}
             onChange={e => setForm({ ...form, seat_number: e.target.value })} required />
-          <span className="form-input" style={{ width: 110, display: 'inline-flex', alignItems: 'center', background: 'var(--surface)', cursor: 'default' }}>🛏️ 침대(bed)</span>
-          <input className="form-input" style={{ flex: 1, minWidth: 150 }} placeholder="위치 (1층 좌측)" value={form.location}
+          <span className="form-input" style={{ width: 100, display: 'inline-flex', alignItems: 'center', background: 'var(--surface)', cursor: 'default' }}>🛏️ 침대</span>
+          <select className="form-input" style={{ width: 120 }} value={form.room_gender}
+            onChange={e => setForm({ ...form, room_gender: e.target.value })}>
+            <option value="male">🚹 남학우실</option>
+            <option value="female">🚺 여학우실</option>
+          </select>
+          <input className="form-input" style={{ flex: 1, minWidth: 140 }} placeholder="위치 (1층 좌측)" value={form.location}
             onChange={e => setForm({ ...form, location: e.target.value })} required />
           <button className="btn btn-primary">추가</button>
         </form>
@@ -188,13 +193,18 @@ function SeatsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>번호</th><th>종류</th><th>위치</th><th>현황</th><th>활성</th><th>QR 토큰</th><th>삭제</th></tr>
+              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>현황</th><th>활성</th><th>QR 토큰</th><th>삭제</th></tr>
             </thead>
             <tbody>
               {seats.map(s => (
                 <tr key={s.id}>
                   <td><strong>{s.seat_number}</strong></td>
                   <td>🛏️ 침대</td>
+                  <td>
+                    <span className={`badge ${s.room_gender === 'male' ? 'badge-male' : 'badge-female'}`}>
+                      {s.room_gender === 'male' ? '🚹 남학우실' : '🚺 여학우실'}
+                    </span>
+                  </td>
                   <td>{s.location}</td>
                   <td><span className={`badge badge-${s.current_status}`}>{statusLabel(s.current_status)}</span></td>
                   <td>
