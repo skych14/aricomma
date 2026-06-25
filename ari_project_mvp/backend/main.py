@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="아리쉼표 API",
     description="안양대학교 학우실 예약/체크인 서비스",
-    version="1.0.0-mvp",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -46,7 +46,7 @@ app.include_router(logs.router)
 
 @app.get("/")
 def root():
-    return {"service": "아리쉼표", "version": "1.0.0-mvp", "status": "running"}
+    return {"service": "아리쉼표", "version": "1.0.0", "status": "running"}
 
 
 @app.get("/health")

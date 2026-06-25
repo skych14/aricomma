@@ -49,12 +49,7 @@ export default function LoginPage() {
         <div className="text-center mt-4 text-muted">
           계정이 없으신가요? <Link to="/register">회원가입</Link>
         </div>
-        <div className="alert alert-info mt-4" style={{ fontSize: '.82rem' }}>
-          <strong>테스트 계정</strong><br />
-          관리자: admin@ari.ac.kr / admin1234<br />
-          학생(인증완료): student@ari.ac.kr / student1234<br />
-          학생(미인증): student2@ari.ac.kr / student1234
-        </div>
+
       </div>
     </div>
   )

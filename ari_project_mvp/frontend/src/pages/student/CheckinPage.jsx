@@ -115,8 +115,7 @@ export default function CheckinPage() {
         <div className="qr-box">
           <div className="qr-icon">📱</div>
           <p>
-            <strong>현장 침대/좌석에 부착된 QR을 스캔하세요</strong><br />
-            (1차 MVP: 아래 필드에 QR 토큰을 직접 입력)
+            <strong>현장 침대/좌석에 부착된 QR을 스캔하세요</strong>
           </p>
           {error && <div className="alert alert-error" style={{ textAlign: 'left' }}>{error}</div>}
           <form onSubmit={submit}>
@@ -130,8 +129,7 @@ export default function CheckinPage() {
                 style={{ fontFamily: 'monospace', fontSize: '.85rem' }}
               />
               <div className="form-hint">
-                실제 서비스: 카메라로 QR 스캔 시 자동 입력됩니다.<br />
-                시연/테스트: 관리자 화면 &gt; 좌석 관리에서 QR 토큰 확인 후 입력
+                카메라로 QR 스캔 시 자동 입력됩니다.
               </div>
             </div>
             <button className="btn btn-success btn-block" disabled={submitting}>
