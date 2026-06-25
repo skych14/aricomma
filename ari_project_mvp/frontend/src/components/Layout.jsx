@@ -14,7 +14,7 @@ export default function Layout({ children }) {
   return (
     <div className="app-layout">
       <header className="header">
-        <NavLink to={user?.role === 'admin' ? '/admin' : '/dashboard'} className="header-brand">
+        <NavLink to={user?.role === 'admin' ? '/admin' : '/seats'} className="header-brand">
           🛏️ 아리쉼표
         </NavLink>
         {user && (

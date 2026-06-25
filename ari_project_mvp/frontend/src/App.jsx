@@ -2,7 +2,7 @@ import React from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import { AdminRoute, ProtectedRoute } from './components/ProtectedRoute.jsx'
-import { AuthProvider } from './contexts/AuthContext.jsx'
+import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
@@ -10,6 +10,13 @@ import CheckinPage from './pages/student/CheckinPage.jsx'
 import DashboardPage from './pages/student/DashboardPage.jsx'
 import SeatsPage from './pages/student/SeatsPage.jsx'
 import VerificationPage from './pages/student/VerificationPage.jsx'
+
+function RootRedirect() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role === 'admin') return <Navigate to="/admin" replace />
+  return <Navigate to="/seats" replace />
+}
 
 export default function App() {
   return (
@@ -36,8 +43,8 @@ export default function App() {
             <AdminRoute><Layout><AdminDashboard /></Layout></AdminRoute>
           } />
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="*" element={<RootRedirect />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
