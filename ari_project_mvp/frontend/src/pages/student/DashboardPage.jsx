@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { reservationApi } from '../../api/index.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
-import { fmtDatetime, statusLabel, statusBadgeClass } from '../../utils/helpers.js'
+import { fmtDatetime, parseUTC, statusLabel, statusBadgeClass } from '../../utils/helpers.js'
+
+const MAX_USAGE_MS = 2 * 60 * 60 * 1000  // 백엔드 max_usage_seconds=7200 과 동기화
 
 export default function DashboardPage() {
   const { user, refreshUser } = useAuth()
@@ -103,6 +105,14 @@ export default function DashboardPage() {
                   <div className="label">체크인 마감</div>
                   <div className="value" style={{ fontSize: '1rem' }}>
                     {fmtDatetime(active.expires_at)}
+                  </div>
+                </div>
+              )}
+              {active.status === 'checked_in' && active.checked_in_at && (
+                <div className="status-card">
+                  <div className="label">자동 퇴실</div>
+                  <div className="value" style={{ fontSize: '1rem' }}>
+                    {fmtDatetime(new Date(parseUTC(active.checked_in_at).getTime() + MAX_USAGE_MS).toISOString())}
                   </div>
                 </div>
               )}

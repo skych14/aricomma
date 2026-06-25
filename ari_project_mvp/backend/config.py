@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     # 개발 테스트용: 환경변수로 만료 시간 조절 가능 (기본 10분)
     reservation_expiry_seconds: int = 600
+    # 체크인 후 최대 이용 시간 (기본 2시간)
+    max_usage_seconds: int = 7200
 
     admin_email: str = "admin@ari.ac.kr"
     admin_password: str = "admin1234"

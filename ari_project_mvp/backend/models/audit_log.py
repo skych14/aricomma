@@ -14,7 +14,8 @@ class AuditLog(Base):
     action_type = Column(String, nullable=False, index=True)
     # USER_LOGIN, USER_REGISTER, VERIFICATION_SUBMIT, VERIFICATION_APPROVE,
     # VERIFICATION_REJECT, RESERVATION_CREATE, RESERVATION_CANCEL,
-    # CHECKIN, CHECKOUT, RESERVATION_EXPIRED, SEAT_CREATE, SEAT_UPDATE, SEAT_DELETE
+    # CHECKIN, CHECKOUT, RESERVATION_EXPIRED, RESERVATION_AUTO_CHECKOUT,
+    # SEAT_CREATE, SEAT_UPDATE, SEAT_DELETE
     target_type = Column(String)  # user | reservation | seat | verification
     target_id = Column(String)
     detail = Column(String)  # JSON 문자열
