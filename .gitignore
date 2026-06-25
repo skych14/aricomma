@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.db
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# Uploads
+uploads/
+
+# Fly.io
+.fly/

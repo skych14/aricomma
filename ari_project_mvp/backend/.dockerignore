@@ -1,0 +1,21 @@
+# 개발용 파일
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# 로컬 DB (컨테이너에서는 /data 볼륨 사용)
+*.db
+*.db-shm
+*.db-wal
+
+# 업로드 파일 (컨테이너에서는 /data/uploads 볼륨 사용)
+uploads/
+
+# 개발 도구
+.venv/
+venv/
+.git/
+.gitignore
