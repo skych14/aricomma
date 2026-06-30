@@ -161,8 +161,26 @@ a:hover { text-decoration: underline; }
 .badge-approved, .badge-completed, .badge-checked_in { background: var(--success-light); color: var(--success); }
 .badge-rejected, .badge-expired, .badge-cancelled { background: var(--danger-light); color: var(--danger); }
 .badge-available { background: var(--success-light); color: var(--success); }
-.badge-reserved { background: var(--warning-light); color: var(--warning); }
-.badge-occupied { background: var(--danger-light); color: var(--danger); }
+.badge-reserved {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--warning-light),
+    var(--warning-light) 3px,
+    #fff 3px,
+    #fff 6px
+  );
+  color: var(--warning);
+}
+.badge-occupied {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--danger-light),
+    var(--danger-light) 3px,
+    #fff 3px,
+    #fff 6px
+  );
+  color: var(--danger);
+}
 .badge-male { background: #dbeafe; color: #1d4ed8; }
 .badge-female { background: #fce7f3; color: #be185d; }
 
@@ -197,8 +215,28 @@ tr:hover td { background: var(--gray-50); }
 }
 .seat-card:hover { border-color: var(--primary); box-shadow: var(--shadow); }
 .seat-card.available { border-color: var(--gray-200); }
-.seat-card.reserved { border-color: var(--warning); background: var(--warning-light); cursor: not-allowed; }
-.seat-card.occupied { border-color: var(--danger); background: var(--danger-light); cursor: not-allowed; }
+.seat-card.reserved {
+  border-color: var(--warning);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--warning-light),
+    var(--warning-light) 5px,
+    #fff 5px,
+    #fff 10px
+  );
+  cursor: not-allowed;
+}
+.seat-card.occupied {
+  border-color: var(--danger);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--danger-light),
+    var(--danger-light) 5px,
+    #fff 5px,
+    #fff 10px
+  );
+  cursor: not-allowed;
+}
 .seat-card .seat-number { font-size: 1.05rem; font-weight: 700; }
 .seat-card .seat-type { font-size: .76rem; color: var(--gray-400); margin-top: 2px; }
 .seat-card .seat-location { font-size: .76rem; color: var(--gray-600); margin-top: 4px; }

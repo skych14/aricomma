@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx'
 
 const STATUS_LABEL = { available: '이용 가능', reserved: '예약 중', occupied: '이용 중', inactive: '비활성' }
 const SEAT_ICON = { bed: '🛏️' }
+const ACCESSIBLE_SEAT_NUMBERS = ['A01', 'B01']
 
 export default function SeatsPage() {
   const { user } = useAuth()
@@ -126,6 +127,9 @@ export default function SeatsPage() {
                     <>
                       <div className="seat-number">
                         {SEAT_ICON[seat.seat_type] || ''} {seat.seat_number}
+                        {ACCESSIBLE_SEAT_NUMBERS.includes(seat.seat_number) && (
+                          <span style={{ fontSize: '.85rem', marginLeft: 3, verticalAlign: 'middle' }}>♿</span>
+                        )}
                       </div>
                       <div className="seat-type">침대</div>
                       <div className="seat-location" style={{ marginTop: 6 }}>
