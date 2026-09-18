@@ -52,6 +52,8 @@ def list_seats(
                 seat_type=s.seat_type,
                 room_gender=s.room_gender,
                 location=s.location,
+                floor=s.floor,
+                bunk_group=s.bunk_group,
                 is_active=s.is_active,
                 current_status=_seat_status(s, db),
                 created_at=s.created_at,
@@ -77,6 +79,8 @@ def admin_list_seats(
                 seat_type=s.seat_type,
                 room_gender=s.room_gender,
                 location=s.location,
+                floor=s.floor,
+                bunk_group=s.bunk_group,
                 is_active=s.is_active,
                 current_status=_seat_status(s, db),
                 qr_token=s.qr_token,
@@ -93,8 +97,13 @@ def create_seat(
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    if db.query(Seat).filter(Seat.seat_number == body.seat_number).first():
-        raise HTTPException(status_code=400, detail="이미 존재하는 좌석 번호입니다")
+    # 좌석번호는 방(location) 안에서만 유일 — 남/여 일반방은 같은 번호를 씀
+    if (
+        db.query(Seat)
+        .filter(Seat.seat_number == body.seat_number, Seat.location == body.location)
+        .first()
+    ):
+        raise HTTPException(status_code=400, detail="같은 방에 이미 존재하는 좌석 번호입니다")
 
     seat = Seat(
         id=str(uuid.uuid4()),
@@ -102,6 +111,8 @@ def create_seat(
         seat_type=body.seat_type,
         room_gender=body.room_gender,
         location=body.location,
+        floor=body.floor,
+        bunk_group=body.bunk_group,
         qr_token=str(uuid.uuid4()),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
@@ -126,6 +137,8 @@ def create_seat(
         seat_type=seat.seat_type,
         room_gender=seat.room_gender,
         location=seat.location,
+        floor=seat.floor,
+        bunk_group=seat.bunk_group,
         is_active=seat.is_active,
         current_status="available",
         qr_token=seat.qr_token,
@@ -145,6 +158,15 @@ def update_seat(
     if not seat:
         raise HTTPException(status_code=404, detail="좌석을 찾을 수 없습니다")
 
+    new_number = body.seat_number if body.seat_number is not None else seat.seat_number
+    new_location = body.location if body.location is not None else seat.location
+    if (new_number, new_location) != (seat.seat_number, seat.location) and (
+        db.query(Seat)
+        .filter(Seat.seat_number == new_number, Seat.location == new_location, Seat.id != seat.id)
+        .first()
+    ):
+        raise HTTPException(status_code=400, detail="같은 방에 이미 존재하는 좌석 번호입니다")
+
     if body.seat_number is not None:
         seat.seat_number = body.seat_number
     if body.seat_type is not None:
@@ -153,6 +175,10 @@ def update_seat(
         seat.room_gender = body.room_gender
     if body.location is not None:
         seat.location = body.location
+    if body.floor is not None:
+        seat.floor = body.floor
+    if body.bunk_group is not None:
+        seat.bunk_group = body.bunk_group
     if body.is_active is not None:
         seat.is_active = body.is_active
     seat.updated_at = datetime.utcnow()
@@ -174,6 +200,8 @@ def update_seat(
         seat_type=seat.seat_type,
         room_gender=seat.room_gender,
         location=seat.location,
+        floor=seat.floor,
+        bunk_group=seat.bunk_group,
         is_active=seat.is_active,
         current_status=_seat_status(seat, db),
         qr_token=seat.qr_token,

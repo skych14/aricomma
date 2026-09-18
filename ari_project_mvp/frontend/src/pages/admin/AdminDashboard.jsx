@@ -132,7 +132,7 @@ function VerificationsTab() {
 function SeatsTab() {
   const [seats, setSeats] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '' })
+  const [form, setForm] = useState({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '', floor: 1, bunk_group: '' })
   const [editTarget, setEditTarget] = useState(null)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
@@ -151,7 +151,7 @@ function SeatsTab() {
     try {
       await seatApi.create(form)
       setMsg('좌석이 추가되었습니다')
-      setForm({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '' })
+      setForm({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '', floor: 1, bunk_group: '' })
       load()
     } catch (e) { setError(errMsg(e)) }
   }
@@ -175,7 +175,7 @@ function SeatsTab() {
       <div className="card">
         <div className="card-title">좌석 추가</div>
         <form onSubmit={handleCreate} className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-          <input className="form-input" style={{ width: 100 }} placeholder="번호 (A01)" value={form.seat_number}
+          <input className="form-input" style={{ width: 100 }} placeholder="번호 (A1-1)" value={form.seat_number}
             onChange={e => setForm({ ...form, seat_number: e.target.value })} required />
           <span className="form-input" style={{ width: 100, display: 'inline-flex', alignItems: 'center', background: 'var(--surface)', cursor: 'default' }}>🛏️ 침대</span>
           <select className="form-input" style={{ width: 120 }} value={form.room_gender}
@@ -183,8 +183,15 @@ function SeatsTab() {
             <option value="male">🚹 남학우실</option>
             <option value="female">🚺 여학우실</option>
           </select>
-          <input className="form-input" style={{ flex: 1, minWidth: 140 }} placeholder="위치 (1층 좌측)" value={form.location}
+          <input className="form-input" style={{ flex: 1, minWidth: 140 }} placeholder="방 (남학우실 일반방)" value={form.location}
             onChange={e => setForm({ ...form, location: e.target.value })} required />
+          <select className="form-input" style={{ width: 90 }} value={form.floor}
+            onChange={e => setForm({ ...form, floor: Number(e.target.value) })}>
+            <option value={1}>1층</option>
+            <option value={2}>2층</option>
+          </select>
+          <input className="form-input" style={{ width: 100 }} placeholder="침대조 (A1)" value={form.bunk_group}
+            onChange={e => setForm({ ...form, bunk_group: e.target.value })} required />
           <button className="btn btn-primary">추가</button>
         </form>
       </div>
@@ -193,7 +200,7 @@ function SeatsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>현황</th><th>활성</th><th>QR 토큰</th><th>삭제</th></tr>
+              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th><th>QR 토큰</th><th>삭제</th></tr>
             </thead>
             <tbody>
               {seats.map(s => (
@@ -206,6 +213,8 @@ function SeatsTab() {
                     </span>
                   </td>
                   <td>{s.location}</td>
+                  <td>{s.floor}층</td>
+                  <td>{s.bunk_group}</td>
                   <td><span className={`badge badge-${s.current_status}`}>{statusLabel(s.current_status)}</span></td>
                   <td>
                     <button className={`btn btn-sm ${s.is_active ? 'btn-success' : 'btn-ghost'}`}

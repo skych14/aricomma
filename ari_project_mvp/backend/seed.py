@@ -17,18 +17,35 @@ from utils.auth import hash_password
 
 Base.metadata.create_all(bind=engine)
 
+MALE_ROOM = "남학우실 일반방"
+FEMALE_ROOM = "여학우실 일반방"
+FEMALE_CAVE_ROOM = "여학우실 굴방"
+
+# 전부 2층 침대(사다리로 연결된 1층/2층 한 쌍). seat_type은 모두 "bed".
+# 좌석의 이용가능/불가 상태는 예약 현황으로 실시간 계산하므로 여기에 넣지 않는다.
+# ⚠️ 화면의 좌석 위치는 frontend/src/pages/student/SeatsPage.jsx의 ROOMS에 하드코딩되어 있으므로
+#    여기서 좌석·방·침대조를 바꾸면 ROOMS 설정도 함께 수정해야 한다.
 SEATS = [
-    # (seat_number, seat_type, location, room_gender)
-    ("A01", "bed", "1층 좌측", "male"),
-    ("A02", "bed", "1층 좌측", "male"),
-    ("A03", "bed", "1층 좌측", "male"),
-    ("A04", "bed", "1층 우측", "male"),
-    ("A05", "bed", "1층 우측", "male"),
-    ("B01", "bed", "2층 좌측", "female"),
-    ("B02", "bed", "2층 좌측", "female"),
-    ("B03", "bed", "2층 우측", "female"),
-    ("B04", "bed", "2층 우측", "female"),
-    ("B05", "bed", "2층 중앙", "female"),
+    # (seat_number, location, room_gender, floor, bunk_group)
+    # 남학우실 일반방 — 10석
+    *[
+        (f"A{g}-{floor}", MALE_ROOM, "male", floor, f"A{g}")
+        for g in range(1, 6)
+        for floor in (1, 2)
+    ],
+    # 여학우실 일반방 — 12석
+    *[
+        (f"A{g}-{floor}", FEMALE_ROOM, "female", floor, f"A{g}")
+        for g in range(1, 7)
+        for floor in (1, 2)
+    ],
+    # 여학우실 굴방 — 6석 (번호에 층 정보가 없음: B1~B3 위층, B4~B6 아래층)
+    ("B4", FEMALE_CAVE_ROOM, "female", 1, "B1"),
+    ("B1", FEMALE_CAVE_ROOM, "female", 2, "B1"),
+    ("B5", FEMALE_CAVE_ROOM, "female", 1, "B2"),
+    ("B2", FEMALE_CAVE_ROOM, "female", 2, "B2"),
+    ("B6", FEMALE_CAVE_ROOM, "female", 1, "B3"),
+    ("B3", FEMALE_CAVE_ROOM, "female", 2, "B3"),
 ]
 
 
@@ -89,34 +106,40 @@ def run():
             db.add(student2)
             print(f"  미인증 학생 생성: {unverified_email}")
 
-        # 좌석 10개
-        for seat_number, seat_type, location, room_gender in SEATS:
-            if not db.query(Seat).filter(Seat.seat_number == seat_number).first():
+        # 좌석 28개 (남 10 / 여 18)
+        for seat_number, location, room_gender, floor, bunk_group in SEATS:
+            # 남/여 일반방이 같은 번호를 쓰므로 (seat_number, location) 조합으로 확인
+            exists = (
+                db.query(Seat)
+                .filter(Seat.seat_number == seat_number, Seat.location == location)
+                .first()
+            )
+            if not exists:
                 seat = Seat(
                     id=str(uuid.uuid4()),
                     seat_number=seat_number,
-                    seat_type=seat_type,
+                    seat_type="bed",
                     room_gender=room_gender,
                     location=location,
+                    floor=floor,
+                    bunk_group=bunk_group,
                     qr_token=str(uuid.uuid4()),
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),
                 )
                 db.add(seat)
-                gender_label = "남학우실" if room_gender == "male" else "여학우실"
-                print(f"  좌석 생성: {seat_number} ({seat_type}, {gender_label}) @ {location}")
+                print(f"  좌석 생성: {location} {seat_number} ({floor}층, 침대조 {bunk_group})")
             else:
-                print(f"  좌석 이미 존재: {seat_number}")
+                print(f"  좌석 이미 존재: {location} {seat_number}")
 
         db.commit()
         print("\nSeed 완료!")
 
         # QR 토큰 출력 (개발/시연용)
         print("\n=== 좌석별 QR 토큰 (체크인 시뮬레이션용) ===")
-        seats = db.query(Seat).order_by(Seat.seat_number).all()
+        seats = db.query(Seat).order_by(Seat.location, Seat.seat_number).all()
         for s in seats:
-            gender_label = "남학우실" if s.room_gender == "male" else "여학우실"
-            print(f"  {s.seat_number:5s} | {gender_label} | {s.location:12s} | QR: {s.qr_token}")
+            print(f"  {s.location} | {s.seat_number:5s} | {s.floor}층 | QR: {s.qr_token}")
 
     finally:
         db.close()

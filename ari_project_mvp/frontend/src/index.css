@@ -199,47 +199,120 @@ td { padding: 10px 10px; border-bottom: 1px solid var(--gray-100); }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--gray-50); }
 
-/* ── Seat Grid (2열 고정 → 넓은 화면에서 3열까지) ─────── */
-.seat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+/* ── Seat Map (배치도) ──────────────────────────────────── */
+:root {
+  --seat-accent: #ef8a0b;       /* 선택 테두리 */
+  --seat-accent-text: #d97000;  /* 안내 문구 (흰 배경 대비 확보) */
+  --seat-fill: #ffe0a0;         /* 이용가능 */
+  --seat-entrance: #ffc266;
+  --seat-ladder: #4a4a4a;
+  --seat-hatch-a: #e4e4e4;
+  --seat-hatch-b: #f7f7f7;
 }
-@media (min-width: 360px) {
-  .seat-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+
+.room-switch { display: flex; gap: 8px; margin-bottom: 12px; }
+.room-switch-btn {
+  flex: 1; min-height: 40px; border-radius: 99px; cursor: pointer;
+  border: 1.5px solid var(--gray-200); background: #fff; color: var(--gray-600);
+  font-size: .88rem; font-weight: 600; -webkit-tap-highlight-color: transparent;
 }
-.seat-card {
-  border: 2px solid var(--gray-200); border-radius: var(--radius);
-  padding: 16px 10px; text-align: center; cursor: pointer; transition: all .15s;
-  background: #fff; -webkit-tap-highlight-color: transparent;
+.room-switch-btn.active { border-color: var(--seat-accent); background: #fff4e0; color: var(--seat-accent-text); }
+.room-switch-count { font-weight: 400; font-size: .78rem; margin-left: 2px; }
+
+.seat-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px;
+  font-size: .78rem; color: var(--gray-600);
 }
-.seat-card:hover { border-color: var(--primary); box-shadow: var(--shadow); }
-.seat-card.available { border-color: var(--gray-200); }
-.seat-card.reserved {
-  border-color: var(--warning);
-  background: repeating-linear-gradient(
-    45deg,
-    var(--warning-light),
-    var(--warning-light) 5px,
-    #fff 5px,
-    #fff 10px
-  );
-  cursor: not-allowed;
+.seat-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.seat-legend-swatch {
+  display: inline-block; width: 18px; height: 13px; border-radius: 4px;
+  border: 1px solid #c4c4c4;
 }
-.seat-card.occupied {
-  border-color: var(--danger);
-  background: repeating-linear-gradient(
-    -45deg,
-    var(--danger-light),
-    var(--danger-light) 5px,
-    #fff 5px,
-    #fff 10px
-  );
-  cursor: not-allowed;
+.seat-legend-swatch.is-available { background: var(--seat-fill); }
+.seat-legend-swatch.is-unavailable {
+  background: repeating-linear-gradient(135deg, var(--seat-hatch-a) 0 2px, var(--seat-hatch-b) 2px 5px);
 }
-.seat-card .seat-number { font-size: 1.05rem; font-weight: 700; }
-.seat-card .seat-type { font-size: .76rem; color: var(--gray-400); margin-top: 2px; }
-.seat-card .seat-location { font-size: .76rem; color: var(--gray-600); margin-top: 4px; }
+.seat-legend-swatch.is-selected { background: #fff; border: 2.5px solid var(--seat-accent); }
+
+.seat-map {
+  background: #fff; border-radius: 24px; padding: 22px 14px 18px;
+  box-shadow: 0 4px 18px rgba(239, 138, 11, .14); margin-bottom: 14px;
+}
+.seat-map-title {
+  text-align: center; font-size: 1.05rem; font-weight: 700;
+  color: var(--seat-accent-text); margin-bottom: 12px;
+}
+
+/* 좌석 카드 (공통) */
+.bunk-seat {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 1.5px solid #c4c4c4; border-radius: 14px; padding: 0;
+  font-family: inherit; color: #555; line-height: 1.2; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: box-shadow .15s;
+}
+.bunk-seat.is-available { background: var(--seat-fill); }
+.bunk-seat.is-available:hover { box-shadow: var(--shadow-lg); }
+/* 이용불가: 색만으로 구분되지 않도록 빗금 패턴 유지 (색약 대응) */
+.bunk-seat.is-unavailable {
+  background: repeating-linear-gradient(135deg, var(--seat-hatch-a) 0 3px, var(--seat-hatch-b) 3px 8px);
+  color: #777; cursor: not-allowed;
+}
+.bunk-seat.is-selected { border: 3.5px solid var(--seat-accent); }
+.bunk-seat:focus-visible { outline: 2px solid var(--gray-900); outline-offset: 2px; }
+.bunk-seat-number { font-size: 1.05rem; font-weight: 700; }
+.bunk-seat-status { font-size: .7rem; display: inline-flex; align-items: center; gap: 2px; }
+.bunk-seat-accessible { font-size: .85rem; line-height: 1; }
+
+/* 일반방: 2층 침대 한 쌍 — 2층(위·왼쪽), 1층(아래·오른쪽), 사이 왼쪽에 사다리 */
+.bunk-pair { position: relative; width: 112px; height: 128px; }
+.bunk-pair .bunk-seat { position: absolute; width: 94px; height: 56px; }
+.bunk-pair-upper { left: 0; top: 0; }
+.bunk-pair-lower { left: 18px; top: 70px; }
+.bunk-pair-ladder {
+  position: absolute; left: 4px; top: 48px; width: 12px; height: 28px;
+  fill: var(--seat-ladder); z-index: 1; pointer-events: none;
+}
+
+.grid-room-row {
+  display: grid; grid-template-columns: 1fr 1fr 20px;
+  justify-items: center; margin-top: 8px;
+}
+.grid-room-row + .grid-room-row { margin-top: 30px; }
+.grid-room-cell { min-height: 128px; }
+.grid-room-floors { position: relative; width: 20px; font-size: .72rem; color: var(--gray-600); }
+.grid-room-floors .floor-2f { position: absolute; left: 0; top: 40px; }
+.grid-room-floors .floor-1f { position: absolute; left: 0; top: 110px; }
+
+.room-entrance { display: flex; align-items: center; font-size: .72rem; color: var(--gray-600); }
+.room-entrance-bar { display: block; background: var(--seat-entrance); border-radius: 2px; }
+.room-entrance--horizontal { flex-direction: column; gap: 6px; margin-top: 22px; }
+.room-entrance--horizontal .room-entrance-bar { width: 28px; height: 5px; }
+.room-entrance--vertical { justify-content: flex-end; gap: 8px; margin: 4px -6px 4px 0; }
+.room-entrance--vertical .room-entrance-bar { width: 5px; height: 26px; }
+
+/* 굴방: 평면도 — % 좌표로 좌석(button)을 배치, 외곽선·칸막이는 아래 SVG 레이어 */
+.plan-room { position: relative; width: 100%; container-type: inline-size; color: #111; }
+.plan-room-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.plan-room-ladder { fill: var(--seat-ladder); }
+.plan-room-floor { font-size: 22px; fill: var(--gray-600); }
+.plan-room-entrance { font-size: 38px; fill: var(--gray-600); }
+.plan-room-entrance-bar { fill: var(--seat-entrance); }
+.plan-room .plan-seat { position: absolute; border-color: transparent; border-radius: 4px; }
+.plan-room .plan-seat.is-unavailable { border-color: #c4c4c4; }
+.plan-room .plan-seat.is-selected { border-color: var(--seat-accent); }
+.plan-seat .bunk-seat-number { font-size: clamp(14px, 6.2cqw, 30px); font-weight: 600; }
+.plan-seat .bunk-seat-status { font-size: clamp(9px, 3.5cqw, 17px); }
+
+/* 선택한 좌석 예약 바 — 하단 탭바 위에 고정 */
+.seat-action-bar {
+  position: sticky; bottom: calc(var(--bottom-nav-height) + 10px); z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: #fff; border: 2px solid var(--seat-accent); border-radius: 14px;
+  padding: 10px 12px; margin-bottom: 14px; box-shadow: var(--shadow-lg);
+}
+.seat-action-info { display: flex; flex-direction: column; min-width: 0; font-size: .9rem; }
+.seat-action-info span { font-size: .76rem; color: var(--gray-600); }
+.seat-action-bar .btn { flex-shrink: 0; }
 
 /* ── Tabs ───────────────────────────────────────────────── */
 .tabs { display: flex; border-bottom: 2px solid var(--gray-200); margin-bottom: 20px; gap: 0; overflow-x: auto; }
