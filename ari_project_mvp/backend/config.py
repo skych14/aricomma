@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # 체크인 후 최대 이용 시간 (기본 2시간)
     max_usage_seconds: int = 7200
 
+    # 테스트 학생 계정(student@, student2@) 생성 여부. 운영 서버에서는 false 유지.
+    seed_test_users: bool = False
+
     admin_email: str = "admin@ari.ac.kr"
     admin_password: str = "admin1234"
     admin_name: str = "관리자"

@@ -1,5 +1,3 @@
-import json
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -19,13 +17,35 @@ from schemas.verification import (
     VerificationWithUser,
 )
 from utils.audit import write_audit
-from utils.auth import get_current_admin, get_current_student, get_current_user
-from utils.mock_ocr import run_mock_ocr
+from utils.auth import get_current_admin, get_current_student
+from utils.upload_files import (
+    ALLOWED_EXTENSIONS,
+    MAX_FILE_SIZE,
+    delete_upload,
+    is_valid_upload,
+    upload_exists,
+)
 
 router = APIRouter(tags=["verifications"])
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".webp"}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+INVALID_FILE_DETAIL = "이미지 또는 PDF 파일만 올릴 수 있습니다"
+
+
+def _to_with_user(v: VerificationRequest, u: User) -> VerificationWithUser:
+    return VerificationWithUser(
+        id=v.id,
+        user_id=v.user_id,
+        ocr_result=v.ocr_result,
+        status=v.status,
+        admin_note=v.admin_note,
+        reviewed_by=v.reviewed_by,
+        reviewed_at=v.reviewed_at,
+        created_at=v.created_at,
+        user_name=u.name,
+        user_email=u.email,
+        user_student_id=u.student_id,
+        has_file=v.status == "pending" and upload_exists(v.file_path),
+    )
 
 
 @router.post("/api/verifications", response_model=VerificationResponse, status_code=201)
@@ -40,17 +60,18 @@ async def submit_verification(
         raise HTTPException(status_code=400, detail="이미 인증이 완료된 계정입니다")
 
     # 파일 확장자 검증
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"허용되지 않는 파일 형식입니다. 허용: {', '.join(ALLOWED_EXTENSIONS)}",
-        )
+        raise HTTPException(status_code=400, detail=INVALID_FILE_DETAIL)
 
     # 파일 크기 제한
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="파일 크기는 10MB를 초과할 수 없습니다")
+
+    # 확장자만 바꾼 파일을 막기 위해 실제 내용까지 확인
+    if not is_valid_upload(content, ext):
+        raise HTTPException(status_code=400, detail=INVALID_FILE_DETAIL)
 
     # UUID 기반 난독화 경로로 저장 (파일명 추측 불가)
     upload_dir = Path(settings.upload_dir)
@@ -61,14 +82,11 @@ async def submit_verification(
     with open(file_path, "wb") as f:
         f.write(content)
 
-    # Mock OCR
-    ocr_result = run_mock_ocr(file.filename)
-
     verification = VerificationRequest(
         id=str(uuid.uuid4()),
         user_id=current_user.id,
         file_path=str(file_path),
-        ocr_result=json.dumps(ocr_result, ensure_ascii=False),
+        ocr_result=None,
         status="pending",
         created_at=datetime.utcnow(),
     )
@@ -115,24 +133,7 @@ def admin_list_verifications(
     if status:
         query = query.filter(VerificationRequest.status == status)
     rows = query.order_by(VerificationRequest.created_at.desc()).all()
-
-    result = []
-    for v, u in rows:
-        item = VerificationWithUser(
-            id=v.id,
-            user_id=v.user_id,
-            ocr_result=v.ocr_result,
-            status=v.status,
-            admin_note=v.admin_note,
-            reviewed_by=v.reviewed_by,
-            reviewed_at=v.reviewed_at,
-            created_at=v.created_at,
-            user_name=u.name,
-            user_email=u.email,
-            user_student_id=u.student_id,
-        )
-        result.append(item)
-    return result
+    return [_to_with_user(v, u) for v, u in rows]
 
 
 @router.get("/api/admin/verifications/{vid}", response_model=VerificationWithUser)
@@ -149,20 +150,7 @@ def admin_get_verification(
     )
     if not row:
         raise HTTPException(status_code=404, detail="인증 요청을 찾을 수 없습니다")
-    v, u = row
-    return VerificationWithUser(
-        id=v.id,
-        user_id=v.user_id,
-        ocr_result=v.ocr_result,
-        status=v.status,
-        admin_note=v.admin_note,
-        reviewed_by=v.reviewed_by,
-        reviewed_at=v.reviewed_at,
-        created_at=v.created_at,
-        user_name=u.name,
-        user_email=u.email,
-        user_student_id=u.student_id,
-    )
+    return _to_with_user(*row)
 
 
 @router.get("/api/admin/verifications/{vid}/file")
@@ -175,7 +163,10 @@ def admin_get_verification_file(
     v = db.query(VerificationRequest).filter(VerificationRequest.id == vid).first()
     if not v:
         raise HTTPException(status_code=404, detail="인증 요청을 찾을 수 없습니다")
-    if not os.path.exists(v.file_path):
+    # 승인/거절 즉시 원본 이미지를 지우므로 처리 완료 건은 열람할 수 없다
+    if v.status != "pending":
+        raise HTTPException(status_code=404, detail="처리 완료되어 파일이 삭제되었습니다")
+    if not upload_exists(v.file_path):
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
     return FileResponse(v.file_path)
 
@@ -191,6 +182,10 @@ def admin_review_verification(
     if body.action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="action은 approve 또는 reject여야 합니다")
 
+    note = (body.admin_note or "").strip()
+    if body.action == "reject" and not note:
+        raise HTTPException(status_code=400, detail="거절 사유를 입력해야 합니다")
+
     v = db.query(VerificationRequest).filter(VerificationRequest.id == vid).first()
     if not v:
         raise HTTPException(status_code=404, detail="인증 요청을 찾을 수 없습니다")
@@ -198,16 +193,22 @@ def admin_review_verification(
         raise HTTPException(status_code=400, detail="이미 처리된 인증 요청입니다")
 
     now = datetime.utcnow()
+    old_path = v.file_path
     v.status = "approved" if body.action == "approve" else "rejected"
-    v.admin_note = body.admin_note
+    v.admin_note = note or None
     v.reviewed_by = current_admin.id
     v.reviewed_at = now
+    # 개인정보 최소 보관: 처리 결과만 남기고 제출 이미지는 즉시 삭제한다.
+    # file_path가 NOT NULL이라 빈 문자열로 비운다. 삭제 실패해도 처리는 계속한다.
+    deleted = delete_upload(old_path)
+    v.file_path = ""
 
+    user = db.query(User).filter(User.id == v.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="제출한 사용자를 찾을 수 없습니다")
     if body.action == "approve":
-        user = db.query(User).filter(User.id == v.user_id).first()
-        if user:
-            user.is_verified = True
-            user.updated_at = now
+        user.is_verified = True
+        user.updated_at = now
 
     db.commit()
 
@@ -218,28 +219,10 @@ def admin_review_verification(
         actor_id=current_admin.id,
         target_type="verification",
         target_id=v.id,
-        detail={"user_id": v.user_id, "admin_note": body.admin_note},
+        detail={"user_id": v.user_id, "admin_note": note or None, "file_deleted": deleted},
         ip_address=request.client.host if request.client else None,
         commit=True,
     )
 
-    row = (
-        db.query(VerificationRequest, User)
-        .join(User, VerificationRequest.user_id == User.id)
-        .filter(VerificationRequest.id == vid)
-        .first()
-    )
-    v2, u2 = row
-    return VerificationWithUser(
-        id=v2.id,
-        user_id=v2.user_id,
-        ocr_result=v2.ocr_result,
-        status=v2.status,
-        admin_note=v2.admin_note,
-        reviewed_by=v2.reviewed_by,
-        reviewed_at=v2.reviewed_at,
-        created_at=v2.created_at,
-        user_name=u2.name,
-        user_email=u2.email,
-        user_student_id=u2.student_id,
-    )
+    db.refresh(v)
+    return _to_with_user(v, user)

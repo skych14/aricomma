@@ -25,6 +25,13 @@ export const verificationApi = {
   adminReview: (id, data) => client.put(`/api/admin/verifications/${id}`, data),
 }
 
+// ── Admin Users ───────────────────────────────────────────────────────────
+export const adminUserApi = {
+  list: (params) => client.get('/api/admin/users', { params }),
+  update: (id, data) => client.patch(`/api/admin/users/${id}`, data),
+  remove: (id) => client.delete(`/api/admin/users/${id}`),
+}
+
 // ── Seats ─────────────────────────────────────────────────────────────────
 export const seatApi = {
   list: () => client.get('/api/seats'),

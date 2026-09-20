@@ -1,29 +1,113 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { logApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
+import { adminUserApi, logApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
 import { errMsg, fmtDatetime, statusBadgeClass, statusLabel } from '../../utils/helpers.js'
 
 // ── 탭 1: 인증 요청 ───────────────────────────────────────────────────────
-function VerificationsTab() {
+const REJECT_PRESETS = [
+  '화면이 흐려 확인이 어렵습니다',
+  '가입한 이름·학번과 제출 화면이 다릅니다',
+  '학생증 또는 학적정보 화면이 아닙니다',
+]
+
+function ReviewModal({ record, onClose, onReviewed }) {
+  const [note, setNote] = useState('')
+  const [fileUrl, setFileUrl] = useState('')
+  const [fileType, setFileType] = useState('')
+  const [fileError, setFileError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  // 제출 파일을 blob으로 받아 검토창 안에서 바로 보여준다 (새 탭 이동 없음)
+  useEffect(() => {
+    let url = ''
+    let cancelled = false
+    if (!record.has_file) { setFileError('처리 완료되어 파일이 삭제되었습니다'); return }
+    verificationApi.adminFetchFile(record.id)
+      .then(res => {
+        if (cancelled) return
+        url = URL.createObjectURL(res.data)
+        setFileUrl(url)
+        setFileType(res.data.type || '')
+      })
+      .catch(e => { if (!cancelled) setFileError(errMsg(e)) })
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [record.id, record.has_file])
+
+  const isPdf = fileType.includes('pdf')
+  const canReject = note.trim().length > 0
+
+  const review = async (action) => {
+    if (action === 'reject' && !canReject) return
+    setBusy(true); setError('')
+    try {
+      await verificationApi.adminReview(record.id, { action, admin_note: note.trim() })
+      onReviewed(action === 'approve' ? '승인 완료' : '거절 완료')
+    } catch (e) { setError(errMsg(e)) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="인증 검토">
+      <div className="card modal-card">
+        <div className="card-title">인증 검토</div>
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <div className="review-file">
+          {fileError ? (
+            <div className="alert alert-warning" style={{ marginBottom: 0 }}>{fileError}</div>
+          ) : !fileUrl ? (
+            <div className="loading-box"><span className="spinner" /></div>
+          ) : isPdf ? (
+            <a className="btn btn-outline btn-block" href={fileUrl} target="_blank" rel="noreferrer">
+              📄 PDF 열기
+            </a>
+          ) : (
+            <img src={fileUrl} alt="제출한 화면 캡처" />
+          )}
+        </div>
+
+        {/* 눈으로 대조하기 쉽게 가입 정보를 이미지 바로 아래에 크게 */}
+        <div className="review-identity">
+          <div className="review-identity-row"><span>이름</span><strong>{record.user_name}</strong></div>
+          <div className="review-identity-row">
+            <span>학번</span><strong className="mono-id review-identity-sid">{record.user_student_id}</strong>
+          </div>
+          <div className="review-identity-row"><span>이메일</span><strong>{record.user_email}</strong></div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">거절 사유 (거절 시 필수)</label>
+          <div className="reject-presets">
+            {REJECT_PRESETS.map(p => (
+              <button key={p} type="button" className="btn btn-sm btn-ghost"
+                onClick={() => setNote(p)}>{p}</button>
+            ))}
+          </div>
+          <input className="form-input" value={note} onChange={e => setNote(e.target.value)}
+            placeholder="거절 사유를 입력하세요" />
+        </div>
+
+        <div className="flex gap-2">
+          <button className="btn btn-success" disabled={busy} onClick={() => review('approve')}>승인</button>
+          <button className="btn btn-danger" disabled={busy || !canReject} onClick={() => review('reject')}>거절</button>
+          <button className="btn btn-ghost" disabled={busy} onClick={onClose}>취소</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function VerificationsTab({ onPendingCount }) {
   const [records, setRecords] = useState([])
   const [filter, setFilter] = useState('pending')
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
-  const [note, setNote] = useState('')
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
-
-  const openFile = async (id) => {
-    try {
-      const res = await verificationApi.adminFetchFile(id)
-      const url = URL.createObjectURL(res.data)
-      const win = window.open(url, '_blank')
-      if (win) win.addEventListener('load', () => URL.revokeObjectURL(url), { once: true })
-      else URL.revokeObjectURL(url)
-    } catch (e) {
-      setError('파일을 불러올 수 없습니다: ' + (e.response?.status === 404 ? '파일 없음' : errMsg(e)))
-    }
-  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -36,21 +120,16 @@ function VerificationsTab() {
 
   useEffect(() => { load() }, [load])
 
-  const review = async (action) => {
-    if (!selected) return
-    try {
-      await verificationApi.adminReview(selected.id, { action, admin_note: note })
-      setMsg(`${action === 'approve' ? '승인' : '거절'} 완료`)
-      setSelected(null); setNote('')
-      load()
-    } catch (e) { setError(errMsg(e)) }
+  const afterReview = (text) => {
+    setMsg(text); setError(''); setSelected(null)
+    load(); onPendingCount?.()
   }
 
   return (
     <div>
       {msg && <div className="alert alert-success">{msg}</div>}
       {error && <div className="alert alert-error">{error}</div>}
-      <div className="flex gap-2 mb-4">
+      <div className="filter-row">
         {['', 'pending', 'approved', 'rejected'].map(s => (
           <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setFilter(s)}>
@@ -60,70 +139,33 @@ function VerificationsTab() {
       </div>
 
       {loading ? <div className="loading-box"><span className="spinner" /></div> : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>제출일</th><th>이름</th><th>학번</th><th>상태</th><th>파일</th><th>처리</th></tr>
-            </thead>
-            <tbody>
-              {records.map(r => (
-                <tr key={r.id}>
-                  <td>{fmtDatetime(r.created_at)}</td>
-                  <td>{r.user_name}</td>
-                  <td>{r.user_student_id}</td>
-                  <td><span className={`badge ${statusBadgeClass(r.status)}`}>{statusLabel(r.status)}</span></td>
-                  <td>
-                    <button className="btn btn-sm btn-ghost" onClick={() => openFile(r.id)}>파일 보기</button>
-                  </td>
-                  <td>
-                    {r.status === 'pending' && (
-                      <button className="btn btn-sm btn-outline"
-                        onClick={() => { setSelected(r); setNote(r.admin_note || '') }}>
-                        검토
-                      </button>
-                    )}
-                    {r.admin_note && <span className="text-muted" style={{ marginLeft: 6, fontSize: '.8rem' }}>{r.admin_note}</span>}
-                  </td>
-                </tr>
-              ))}
-              {records.length === 0 && <tr><td colSpan={6} className="text-center text-muted">내역 없음</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <ul className="record-list">
+          {records.map(r => (
+            <li key={r.id} className="record-card">
+              <div className="record-card-head">
+                <div>
+                  <strong>{r.user_name}</strong>{' '}
+                  <span className="mono-id">{r.user_student_id}</span>
+                </div>
+                <span className={`badge ${statusBadgeClass(r.status)}`}>{statusLabel(r.status)}</span>
+              </div>
+              <div className="record-card-meta">{fmtDatetime(r.created_at)}</div>
+              {r.admin_note && <div className="record-card-note">{r.admin_note}</div>}
+              <div className="record-card-actions">
+                {r.status === 'pending' ? (
+                  <button className="btn btn-sm btn-outline" onClick={() => setSelected(r)}>검토</button>
+                ) : (
+                  <span className="text-muted" style={{ fontSize: '.8rem' }}>삭제됨</span>
+                )}
+              </div>
+            </li>
+          ))}
+          {records.length === 0 && <li className="text-center text-muted" style={{ padding: 20 }}>내역 없음</li>}
+        </ul>
       )}
 
       {selected && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div className="card" style={{ width: 480, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="card-title">인증 검토 — {selected.user_name} ({selected.user_student_id})</div>
-            <div className="mb-4">
-              <button className="btn btn-outline btn-sm" onClick={() => openFile(selected.id)}>📄 제출 파일 열기</button>
-            </div>
-            {selected.ocr_result && (() => {
-              try {
-                const ocr = JSON.parse(selected.ocr_result)
-                return (
-                  <div className="alert alert-info" style={{ marginBottom: 12 }}>
-                    <strong>Mock OCR 결과</strong><br />
-                    이름: {ocr.detected_name} / 학번: {ocr.detected_student_id}<br />
-                    신뢰도: {(ocr.confidence * 100).toFixed(0)}%<br />
-                    <small>{ocr.note}</small>
-                  </div>
-                )
-              } catch { return null }
-            })()}
-            <div className="form-group">
-              <label className="form-label">관리자 메모 (선택)</label>
-              <input className="form-input" value={note} onChange={e => setNote(e.target.value)}
-                placeholder="승인/거절 사유 등" />
-            </div>
-            <div className="flex gap-2">
-              <button className="btn btn-success" onClick={() => review('approve')}>승인</button>
-              <button className="btn btn-danger" onClick={() => review('reject')}>거절</button>
-              <button className="btn btn-ghost" onClick={() => setSelected(null)}>취소</button>
-            </div>
-          </div>
-        </div>
+        <ReviewModal record={selected} onClose={() => setSelected(null)} onReviewed={afterReview} />
       )}
     </div>
   )
@@ -358,13 +400,168 @@ function AuditTab() {
   )
 }
 
+// ── 탭: 사용자 관리 ──────────────────────────────────────────────────────
+const USER_FILTERS = [
+  { key: '', label: '전체' },
+  { key: 'verified', label: '인증됨' },
+  { key: 'unverified', label: '미인증' },
+  { key: 'suspended', label: '정지' },
+]
+
+function DeleteUserModal({ user, onClose, onDeleted }) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const matched = typed.trim() === user.student_id
+
+  const remove = async () => {
+    if (!matched) return
+    setBusy(true); setError('')
+    try {
+      await adminUserApi.remove(user.id)
+      onDeleted(`${user.name}(${user.student_id}) 계정을 삭제했습니다`)
+    } catch (e) { setError(errMsg(e)); setBusy(false) }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="계정 삭제 확인">
+      <div className="card modal-card">
+        <div className="card-title">계정 삭제</div>
+        {error && <div className="alert alert-error">{error}</div>}
+        <p style={{ fontSize: '.9rem', marginBottom: 12 }}>
+          이 계정과 관련 기록이 모두 삭제됩니다. 계속하려면 학번{' '}
+          <strong className="mono-id">{user.student_id}</strong> 를 입력하세요
+        </p>
+        <input className="form-input" value={typed} onChange={e => setTyped(e.target.value)}
+          placeholder="학번 입력" autoFocus />
+        <div className="flex gap-2 mt-4">
+          <button className="btn btn-danger" disabled={!matched || busy} onClick={remove}>
+            {busy ? <span className="spinner" /> : '삭제'}
+          </button>
+          <button className="btn btn-ghost" disabled={busy} onClick={onClose}>취소</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UsersTab() {
+  const [users, setUsers] = useState([])
+  const [q, setQ] = useState('')
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(null)
+  const [msg, setMsg] = useState('')
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = {}
+      if (search) params.q = search
+      if (filter) params.status = filter
+      const r = await adminUserApi.list(params)
+      setUsers(r.data)
+    } catch (e) { setError(errMsg(e)) }
+    finally { setLoading(false) }
+  }, [search, filter])
+
+  useEffect(() => { load() }, [load])
+
+  const patch = async (user, data, label) => {
+    setError(''); setMsg('')
+    try {
+      await adminUserApi.update(user.id, data)
+      setMsg(`${user.name}: ${label}`)
+      load()
+    } catch (e) { setError(errMsg(e)) }
+  }
+
+  return (
+    <div>
+      {msg && <div className="alert alert-success">{msg}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <form className="filter-row" onSubmit={e => { e.preventDefault(); setSearch(q.trim()) }}>
+        <input className="form-input" style={{ flex: 1, minWidth: 140 }} value={q}
+          onChange={e => setQ(e.target.value)} placeholder="이름 · 학번 · 이메일 검색" />
+        <button className="btn btn-sm btn-primary">검색</button>
+      </form>
+      <div className="filter-row">
+        {USER_FILTERS.map(f => (
+          <button key={f.key} className={`btn btn-sm ${filter === f.key ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFilter(f.key)}>{f.label}</button>
+        ))}
+      </div>
+
+      {loading ? <div className="loading-box"><span className="spinner" /></div> : (
+        <ul className="record-list">
+          {users.map(u => (
+            <li key={u.id} className={`record-card${u.is_suspended ? ' is-suspended' : ''}`}>
+              <div className="record-card-head">
+                <div>
+                  <strong>{u.name}</strong>{' '}
+                  <span className="mono-id">{u.student_id}</span>
+                </div>
+                <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                  {u.role === 'admin' && <span className="badge badge-male">관리자</span>}
+                  {u.is_suspended && <span className="badge badge-rejected">정지</span>}
+                  <span className={`badge ${u.is_verified ? 'badge-approved' : 'badge-pending'}`}>
+                    {u.is_verified ? '인증됨' : '미인증'}
+                  </span>
+                </div>
+              </div>
+              <div className="record-card-meta">
+                {u.email} · 예약 {u.reservation_count}건 · 가입 {fmtDatetime(u.created_at)}
+              </div>
+              {u.role !== 'admin' && (
+                <div className="record-card-actions">
+                  {u.is_suspended ? (
+                    <button className="btn btn-sm btn-ghost"
+                      onClick={() => patch(u, { is_suspended: false }, '정지 해제됨')}>정지 해제</button>
+                  ) : (
+                    <button className="btn btn-sm btn-ghost"
+                      onClick={() => patch(u, { is_suspended: true }, '정지됨')}>정지</button>
+                  )}
+                  {u.is_verified && (
+                    <button className="btn btn-sm btn-ghost"
+                      onClick={() => patch(u, { is_verified: false }, '인증 해제됨')}>인증 해제</button>
+                  )}
+                  <button className="btn btn-sm btn-danger" onClick={() => setDeleting(u)}>삭제</button>
+                </div>
+              )}
+            </li>
+          ))}
+          {users.length === 0 && <li className="text-center text-muted" style={{ padding: 20 }}>사용자 없음</li>}
+        </ul>
+      )}
+
+      {deleting && (
+        <DeleteUserModal user={deleting} onClose={() => setDeleting(null)}
+          onDeleted={(text) => { setDeleting(null); setMsg(text); setError(''); load() }} />
+      )}
+    </div>
+  )
+}
+
 // ── 메인 관리자 대시보드 ─────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('verifications')
+  const [pendingCount, setPendingCount] = useState(0)
+
+  const loadPendingCount = useCallback(() => {
+    verificationApi.adminList('pending')
+      .then(r => setPendingCount(r.data.length))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => { loadPendingCount() }, [loadPendingCount])
 
   const TABS = [
-    { key: 'verifications', label: '인증 요청' },
+    { key: 'verifications', label: '인증', badge: pendingCount },
+    { key: 'users', label: '사용자' },
     { key: 'seats', label: '좌석 관리' },
     { key: 'reservations', label: '예약/이용 로그' },
     { key: 'audit', label: '감사 로그' },
@@ -378,16 +575,18 @@ export default function AdminDashboard() {
           🖨️ QR 인쇄
         </button>
       </div>
-      <div className="tabs" style={{ marginTop: 16 }}>
+      <div className="tabs tabs-scroll" style={{ marginTop: 16 }}>
         {TABS.map(t => (
           <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`}
             onClick={() => setTab(t.key)}>
             {t.label}
+            {t.badge > 0 && <span className="tab-badge">{t.badge}</span>}
           </button>
         ))}
       </div>
       <div>
-        {tab === 'verifications' && <VerificationsTab />}
+        {tab === 'verifications' && <VerificationsTab onPendingCount={loadPendingCount} />}
+        {tab === 'users' && <UsersTab />}
         {tab === 'seats' && <SeatsTab />}
         {tab === 'reservations' && <ReservationsTab />}
         {tab === 'audit' && <AuditTab />}

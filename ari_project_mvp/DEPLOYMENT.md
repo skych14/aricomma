@@ -118,7 +118,49 @@ exit
 fly ssh console --app ari-project-mvp --command "python /app/seed.py"
 ```
 
-### 1-7. 백엔드 URL 확인
+> `seed.py`는 관리자 계정과 좌석만 만듭니다.
+> 테스트 학생 계정(`student@`, `student2@`)은 `SEED_TEST_USERS=true`일 때만 생성되며,
+> **운영 서버에서는 설정하지 마세요** (기본값 `false`).
+
+### 1-7. 운영 관리 스크립트
+
+운영 서버의 스크립트는 모두 Fly 컨테이너 안에서 실행합니다.
+
+```bash
+fly ssh console --app ari-project-mvp
+# 컨테이너 내부에서:
+cd /app
+python scripts/<스크립트>.py
+exit
+```
+
+| 스크립트 | 하는 일 | 언제 쓰나 |
+|---|---|---|
+| `scripts/set_admin_password.py` | 관리자 이메일을 확인하고 새 비밀번호를 `getpass`로 입력받아 해시를 교체 | 배포 직후 기본 비밀번호를 반드시 바꿀 때 |
+| `scripts/remove_test_users.py` | `student@ari.ac.kr` / `student2@ari.ac.kr` 계정과 그 계정의 예약·이용기록·인증요청(파일 포함)을 삭제 | 운영 전환 시 시드 테스트 계정 정리 |
+| `scripts/purge_reviewed_files.py` | 이미 승인/거절된 인증 요청에 남아 있는 이미지 파일을 삭제하고 경로를 비움 (대기 중 건은 건드리지 않음) | 즉시 삭제 기능 도입 전에 쌓인 파일 정리 |
+
+```bash
+# 예: 관리자 비밀번호 변경 (입력값은 화면에 표시되지 않음)
+fly ssh console --app ari-project-mvp
+cd /app
+python scripts/set_admin_password.py
+#   관리자 이메일 [admin@ari.ac.kr]:
+#   새 비밀번호:
+#   새 비밀번호 확인:
+#   완료: admin@ari.ac.kr 비밀번호가 변경되었습니다
+exit
+```
+
+> `set_admin_password.py`는 비밀번호를 입력받으므로 `--command` 원격 실행이 아니라
+> `fly ssh console`로 접속한 뒤 대화형으로 실행해야 합니다.
+>
+> 나머지 둘은 원격 실행도 가능합니다:
+> ```bash
+> fly ssh console --app ari-project-mvp --command "sh -c 'cd /app && python scripts/remove_test_users.py'"
+> ```
+
+### 1-8. 백엔드 URL 확인
 
 ```bash
 fly status --app ari-project-mvp

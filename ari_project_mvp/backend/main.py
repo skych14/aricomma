@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from database import Base, engine
-from routers import auth, logs, reservations, seats, verifications
+from routers import auth, logs, reservations, seats, users, verifications
 from scheduler import start_scheduler, stop_scheduler
 
 
@@ -42,6 +42,7 @@ app.include_router(verifications.router)
 app.include_router(seats.router)
 app.include_router(reservations.router)
 app.include_router(logs.router)
+app.include_router(users.router)
 
 
 @app.get("/")

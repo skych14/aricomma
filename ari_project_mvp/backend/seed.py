@@ -70,41 +70,45 @@ def run():
         else:
             print(f"  관리자 이미 존재: {settings.admin_email}")
 
-        # 테스트 학생 계정 (인증 승인 상태)
-        test_student_email = "student@ari.ac.kr"
-        if not db.query(User).filter(User.email == test_student_email).first():
-            student = User(
-                id=str(uuid.uuid4()),
-                email=test_student_email,
-                hashed_password=hash_password("student1234"),
-                name="테스트학생",
-                student_id="20210001",
-                role="student",
-                is_verified=True,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            db.add(student)
-            print(f"  테스트 학생 생성: {test_student_email} (인증 완료 상태)")
+        # 테스트 학생 계정 — 운영 서버에 남지 않도록 SEED_TEST_USERS=true일 때만 생성
+        if not settings.seed_test_users:
+            print("  테스트 학생 계정 생략 (SEED_TEST_USERS=true 일 때만 생성)")
         else:
-            print(f"  테스트 학생 이미 존재: {test_student_email}")
+            # 인증 승인 상태
+            test_student_email = "student@ari.ac.kr"
+            if not db.query(User).filter(User.email == test_student_email).first():
+                student = User(
+                    id=str(uuid.uuid4()),
+                    email=test_student_email,
+                    hashed_password=hash_password("student1234"),
+                    name="테스트학생",
+                    student_id="20210001",
+                    role="student",
+                    is_verified=True,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                db.add(student)
+                print(f"  테스트 학생 생성: {test_student_email} (인증 완료 상태)")
+            else:
+                print(f"  테스트 학생 이미 존재: {test_student_email}")
 
-        # 테스트 학생 계정 (미인증 상태)
-        unverified_email = "student2@ari.ac.kr"
-        if not db.query(User).filter(User.email == unverified_email).first():
-            student2 = User(
-                id=str(uuid.uuid4()),
-                email=unverified_email,
-                hashed_password=hash_password("student1234"),
-                name="미인증학생",
-                student_id="20210002",
-                role="student",
-                is_verified=False,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            db.add(student2)
-            print(f"  미인증 학생 생성: {unverified_email}")
+            # 미인증 상태
+            unverified_email = "student2@ari.ac.kr"
+            if not db.query(User).filter(User.email == unverified_email).first():
+                student2 = User(
+                    id=str(uuid.uuid4()),
+                    email=unverified_email,
+                    hashed_password=hash_password("student1234"),
+                    name="미인증학생",
+                    student_id="20210002",
+                    role="student",
+                    is_verified=False,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                db.add(student2)
+                print(f"  미인증 학생 생성: {unverified_email}")
 
         # 좌석 28개 (남 10 / 여 18)
         for seat_number, location, room_gender, floor, bunk_group in SEATS:

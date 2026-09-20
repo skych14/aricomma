@@ -165,7 +165,7 @@ function PlanRoom({ room, bunks, getCardProps }) {
 // ── 페이지 ───────────────────────────────────────────────────────────────
 
 export default function SeatsPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [seats, setSeats] = useState([])
   const [loading, setLoading] = useState(true)
@@ -186,7 +186,7 @@ export default function SeatsPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { refreshUser?.().catch(() => {}); load() }, [])
 
   const rooms = ROOMS[genderTab]
   const room = rooms[roomIdx] || rooms[0]
@@ -235,7 +235,13 @@ export default function SeatsPage() {
       <h1 className="page-title">좌석 현황</h1>
 
       {!user?.is_verified && (
-        <div className="alert alert-warning">학생 인증이 완료된 후 예약할 수 있습니다.</div>
+        <div className="verify-gate">
+          <strong>학생 인증이 필요해요</strong>
+          <p>재학생 확인이 끝나야 좌석을 예약할 수 있어요.</p>
+          <button className="btn btn-primary btn-block mt-4" onClick={() => navigate('/verify')}>
+            인증하러 가기
+          </button>
+        </div>
       )}
       {error && <div className="alert alert-error">{error}</div>}
 
@@ -292,9 +298,15 @@ export default function SeatsPage() {
             <strong>{room.location} <span className="seat-no">{selected.seat_number}</span></strong>
             <span>{selected.floor}층 · 예약 후 10분 내 QR 체크인</span>
           </div>
-          <button className="btn btn-primary" onClick={handleReserve} disabled={reserving}>
-            {reserving ? <span className="spinner" /> : '예약하기'}
-          </button>
+          {user?.is_verified ? (
+            <button className="btn btn-primary" onClick={handleReserve} disabled={reserving}>
+              {reserving ? <span className="spinner" /> : '예약하기'}
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={() => navigate('/verify')}>
+              인증하러 가기
+            </button>
+          )}
         </div>
       )}
 

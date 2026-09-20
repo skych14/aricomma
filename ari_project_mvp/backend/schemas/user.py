@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
@@ -47,3 +48,22 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class AdminUserResponse(BaseModel):
+    """관리자 사용자 목록 항목. 비밀번호 해시는 절대 포함하지 않는다."""
+
+    id: str
+    email: str
+    name: str
+    student_id: str
+    role: str
+    is_verified: bool
+    is_suspended: bool
+    created_at: datetime
+    reservation_count: int = 0
+
+
+class AdminUserUpdate(BaseModel):
+    is_suspended: Optional[bool] = None
+    is_verified: Optional[bool] = None
