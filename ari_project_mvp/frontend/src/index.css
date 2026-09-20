@@ -347,11 +347,6 @@ tr:hover td { background: var(--gray-50); }
 .status-card .label { font-size: .8rem; color: var(--gray-400); }
 .status-card .value { font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
 
-/* ── QR box ─────────────────────────────────────────────── */
-.qr-box { border: 2px dashed var(--gray-200); border-radius: 12px; padding: 24px 16px; text-align: center; margin: 16px 0; }
-.qr-icon { font-size: 2.8rem; margin-bottom: 10px; }
-.qr-box p { color: var(--gray-600); margin-bottom: 12px; font-size: .95rem; }
-
 /* ── Timer ──────────────────────────────────────────────── */
 .timer { font-size: 1.8rem; font-weight: 700; color: var(--danger); font-variant-numeric: tabular-nums; }
 .timer.ok { color: var(--success); }
@@ -397,6 +392,25 @@ tr:hover td { background: var(--gray-50); }
   color: #fff; font-size: .88rem; background: #111;
 }
 
+/* 권한 거부 / 카메라 없음 안내 — 프레임 안을 덮는다 */
+.scanner-error {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 16px 14px;
+  background: #111; color: #fff; text-align: center;
+  overflow-y: auto;
+}
+.scanner-error-icon { font-size: 2rem; line-height: 1; }
+.scanner-error-title { font-size: .98rem; font-weight: 700; }
+.scanner-error-desc {
+  font-size: .84rem; line-height: 1.45;
+  color: rgba(255, 255, 255, .82); word-break: keep-all;
+}
+.scanner-error-note {
+  font-size: .74rem; line-height: 1.4;
+  color: rgba(255, 255, 255, .58); word-break: keep-all;
+}
+
 /* 좌석 번호(A1-1 등)는 하이픈에서 끊기지 않게 */
 .seat-no { white-space: nowrap; }
 
@@ -422,16 +436,6 @@ tr:hover td { background: var(--gray-50); }
 .qr-card-img svg { width: 100%; height: auto; max-width: 132px; }
 .qr-card-name { font-size: 1rem; font-weight: 700; line-height: 1.3; word-break: keep-all; }
 .qr-card-floor { font-size: .8rem; color: var(--gray-600); margin-top: 2px; }
-/* 카메라를 못 쓰는 이용자가 보고 입력하는 값 — 인쇄물에도 나온다 */
-.qr-card-token {
-  margin-top: 3px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: .6rem;
-  line-height: 1.25;
-  color: var(--gray-600);
-  word-break: break-all;
-  overflow-wrap: anywhere;
-}
 .qr-card-actions { margin-top: 8px; }
 
 @media print {
@@ -472,7 +476,4 @@ tr:hover td { background: var(--gray-50); }
   .qr-card-img svg { width: 42mm !important; height: 42mm !important; max-width: none; }
   .qr-card-name { font-size: 10.5pt; line-height: 1.25; }
   .qr-card-floor { font-size: 8pt; margin-top: 0.5mm; }
-  /* 6pt 고정폭 — UUID 36자가 카드 폭(약 57mm)에 한 줄로 들어가고,
-     넘치면 줄바꿈된다. 카드 세로 예산 58mm 중 약 3mm를 쓴다. */
-  .qr-card-token { font-size: 6pt; line-height: 1.15; margin-top: 0.8mm; color: #333; }
 }

@@ -184,9 +184,7 @@ def checkin(
     db: Session = Depends(get_db),
 ):
     """
-    현장 침대/좌석에 부착된 QR을 스캔하여 체크인.
-    qr_token 직접 입력 방식 (QR 카메라 스캔 도입 전 임시 입력 방식).
-    실제 운영: html5-qrcode 등 카메라 스캔으로 교체 (API 변경 없음).
+    현장 침대에 부착된 QR을 카메라로 스캔해 얻은 qr_token으로 체크인.
     """
     # 만료 보정 먼저
     expire_pending_reservations(db)

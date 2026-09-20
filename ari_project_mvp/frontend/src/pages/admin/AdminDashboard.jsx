@@ -201,7 +201,7 @@ function SeatsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th><th>QR 토큰</th><th>삭제</th></tr>
+              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th><th>삭제</th></tr>
             </thead>
             <tbody>
               {seats.map(s => (
@@ -223,9 +223,6 @@ function SeatsTab() {
                       {s.is_active ? '활성' : '비활성'}
                     </button>
                   </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '.75rem', color: 'var(--gray-600)' }}>
-                    {s.qr_token}
-                  </td>
                   <td>
                     <button className="btn btn-sm btn-danger"
                       onClick={() => handleDelete(s.id, s.seat_number)}>삭제</button>
@@ -237,8 +234,8 @@ function SeatsTab() {
         </div>
       )}
       <div className="alert alert-info" style={{ marginTop: 12, fontSize: '.82rem' }}>
-        <strong>QR 토큰 안내:</strong> 각 좌석의 QR 토큰을 QR 코드 생성기로 이미지화하여 해당 침대/좌석에 부착하세요.
-        학생은 예약 후 현장에서 이 QR을 스캔하여 체크인합니다.
+        <strong>QR 스티커 안내:</strong> QR 스티커는 상단의 🖨️ QR 인쇄 화면에서 인쇄하세요.
+        학생은 예약 후 현장에서 이 QR을 카메라로 스캔하여 체크인합니다.
       </div>
     </div>
   )

@@ -135,12 +135,6 @@ def run():
         db.commit()
         print("\nSeed 완료!")
 
-        # QR 토큰 출력 (개발/시연용)
-        print("\n=== 좌석별 QR 토큰 (체크인 시뮬레이션용) ===")
-        seats = db.query(Seat).order_by(Seat.location, Seat.seat_number).all()
-        for s in seats:
-            print(f"  {s.location} | {s.seat_number:5s} | {s.floor}층 | QR: {s.qr_token}")
-
     finally:
         db.close()
 

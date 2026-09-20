@@ -206,8 +206,8 @@ open https://ari-project-mvp.pages.dev
 
 4. 좌석 예약 + QR 체크인
    → /seats → 좌석 선택 → 예약
-   → /admin → 좌석 관리 탭 → QR 토큰 확인
-   → /checkin/{id} → 토큰 입력
+   → /admin/qr-print 에서 인쇄한 좌석 QR을 현장 침대에 부착
+   → /checkin/{id} → 카메라로 해당 좌석 QR 스캔 (HTTPS 필요)
 
 5. 퇴실
    → /dashboard → 퇴실하기
