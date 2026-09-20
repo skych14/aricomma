@@ -39,7 +39,7 @@ function AdminLayout({ user, onLogout, children }) {
       <header className="header">
         <NavLink to="/admin" className="header-brand">🛏️ 아리쉼표</NavLink>
         <nav className="header-nav">
-          <NavLink to="/admin" className={({ isActive }) => isActive ? 'active' : ''}>관리자</NavLink>
+          <NavLink to="/admin" end className={({ isActive }) => isActive ? 'active' : ''}>관리자</NavLink>
           <span style={{ fontSize: '.82rem', color: 'rgba(255,255,255,.8)', marginLeft: 4 }}>{user.name}</span>
           <button className="btn-logout" onClick={onLogout}>로그아웃</button>
         </nav>

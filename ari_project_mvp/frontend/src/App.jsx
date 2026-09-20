@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
+import QrPrintPage from './pages/admin/QrPrintPage.jsx'
 import CheckinPage from './pages/student/CheckinPage.jsx'
 import DashboardPage from './pages/student/DashboardPage.jsx'
 import SeatsPage from './pages/student/SeatsPage.jsx'
@@ -41,6 +42,9 @@ export default function App() {
 
           <Route path="/admin" element={
             <AdminRoute><Layout><AdminDashboard /></Layout></AdminRoute>
+          } />
+          <Route path="/admin/qr-print" element={
+            <AdminRoute><Layout><QrPrintPage /></Layout></AdminRoute>
           } />
 
           <Route path="/" element={<RootRedirect />} />

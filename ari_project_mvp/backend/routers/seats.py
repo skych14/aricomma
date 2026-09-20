@@ -146,6 +146,83 @@ def create_seat(
     )
 
 
+def _to_admin_response(seat: Seat, db: Session) -> SeatAdminResponse:
+    return SeatAdminResponse(
+        id=seat.id,
+        seat_number=seat.seat_number,
+        seat_type=seat.seat_type,
+        room_gender=seat.room_gender,
+        location=seat.location,
+        floor=seat.floor,
+        bunk_group=seat.bunk_group,
+        is_active=seat.is_active,
+        current_status=_seat_status(seat, db),
+        qr_token=seat.qr_token,
+        created_at=seat.created_at,
+    )
+
+
+# 주의: 고정 경로(rotate-qr-all)를 {seat_id} 경로보다 먼저 등록해야
+# "rotate-qr-all"이 seat_id로 잡히지 않는다.
+@router.post("/api/admin/seats/rotate-qr-all")
+def rotate_qr_all(
+    request: Request,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """활성 좌석 전체의 QR 토큰을 새로 발급 (학기별 보안 교체용).
+
+    qr_token 외의 컬럼은 건드리지 않는다. 기존 스티커는 즉시 무효가 되므로
+    재발급 후 반드시 새 QR을 인쇄해 교체해야 한다.
+    """
+    seats = db.query(Seat).filter(Seat.is_active == True).all()
+    for seat in seats:
+        seat.qr_token = str(uuid.uuid4())
+    db.commit()
+
+    # 전체 교체는 감사 로그에 한 건으로 기록하고 detail에 좌석 수를 남긴다
+    write_audit(
+        db,
+        action_type="QR_ROTATE",
+        actor_id=current_admin.id,
+        target_type="seat",
+        target_id=None,
+        detail={"scope": "all_active", "rotated_count": len(seats)},
+        ip_address=request.client.host if request.client else None,
+        commit=True,
+    )
+    return {"rotated_count": len(seats)}
+
+
+@router.post("/api/admin/seats/{seat_id}/rotate-qr", response_model=SeatAdminResponse)
+def rotate_qr(
+    seat_id: str,
+    request: Request,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """좌석 1개의 QR 토큰을 새로 발급. qr_token 외에는 아무것도 바꾸지 않는다."""
+    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    if not seat:
+        raise HTTPException(status_code=404, detail="좌석을 찾을 수 없습니다")
+
+    seat.qr_token = str(uuid.uuid4())
+    db.commit()
+    db.refresh(seat)
+
+    write_audit(
+        db,
+        action_type="QR_ROTATE",
+        actor_id=current_admin.id,
+        target_type="seat",
+        target_id=seat.id,
+        detail={"scope": "single", "seat_number": seat.seat_number, "location": seat.location},
+        ip_address=request.client.host if request.client else None,
+        commit=True,
+    )
+    return _to_admin_response(seat, db)
+
+
 @router.put("/api/admin/seats/{seat_id}", response_model=SeatAdminResponse)
 def update_seat(
     seat_id: str,

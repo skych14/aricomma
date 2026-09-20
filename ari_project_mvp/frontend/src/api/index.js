@@ -33,6 +33,8 @@ export const seatApi = {
   create: (data) => client.post('/api/admin/seats', data),
   update: (id, data) => client.put(`/api/admin/seats/${id}`, data),
   delete: (id) => client.delete(`/api/admin/seats/${id}`),
+  rotateQr: (id) => client.post(`/api/admin/seats/${id}/rotate-qr`),
+  rotateQrAll: () => client.post('/api/admin/seats/rotate-qr-all'),
 }
 
 // ── Reservations ──────────────────────────────────────────────────────────

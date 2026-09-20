@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { logApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
 import { errMsg, fmtDatetime, statusBadgeClass, statusLabel } from '../../utils/helpers.js'
 
@@ -362,6 +363,7 @@ function AuditTab() {
 
 // ── 메인 관리자 대시보드 ─────────────────────────────────────────────────
 export default function AdminDashboard() {
+  const navigate = useNavigate()
   const [tab, setTab] = useState('verifications')
 
   const TABS = [
@@ -373,8 +375,13 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="page-title">관리자 대시보드</h1>
-      <div className="tabs">
+      <div className="flex-between" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>관리자 대시보드</h1>
+        <button className="btn btn-outline btn-sm" onClick={() => navigate('/admin/qr-print')}>
+          🖨️ QR 인쇄
+        </button>
+      </div>
+      <div className="tabs" style={{ marginTop: 16 }}>
         {TABS.map(t => (
           <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`}
             onClick={() => setTab(t.key)}>
