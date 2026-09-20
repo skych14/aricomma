@@ -21,6 +21,8 @@ class ReservationResponse(BaseModel):
     expires_at: datetime
     checked_in_at: Optional[datetime] = None
     checked_out_at: Optional[datetime] = None
+    # 이용 종료 예정 시각(UTC). 체크인 전이거나 컬럼 도입 전 예약이면 None.
+    usage_ends_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

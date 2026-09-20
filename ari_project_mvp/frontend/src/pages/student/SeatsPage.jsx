@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { reservationApi, seatApi } from '../../api/index.js'
+import { operationApi, reservationApi, seatApi } from '../../api/index.js'
+import OperationBanner from '../../components/OperationBanner.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
+import { fmtTime } from '../../utils/helpers.js'
 
 // 장애인 배려 권장석 — ♿ 표시만 하고 예약 제한·우선권은 없음.
 // 좌석번호가 방마다 겹치므로(남/여 일반방 모두 A5-1 존재) 방(location) 단위로 관리
@@ -174,6 +176,7 @@ export default function SeatsPage() {
   const [genderTab, setGenderTab] = useState('male')
   const [roomIdx, setRoomIdx] = useState(0)
   const [selectedId, setSelectedId] = useState(null)
+  const [op, setOp] = useState(null)
 
   const load = async () => {
     try {
@@ -186,7 +189,11 @@ export default function SeatsPage() {
     }
   }
 
-  useEffect(() => { refreshUser?.().catch(() => {}); load() }, [])
+  const loadOperation = async () => {
+    try { setOp((await operationApi.get()).data) } catch { /* 안내 배너만 생략 */ }
+  }
+
+  useEffect(() => { refreshUser?.().catch(() => {}); load(); loadOperation() }, [])
 
   const rooms = ROOMS[genderTab]
   const room = rooms[roomIdx] || rooms[0]
@@ -196,6 +203,9 @@ export default function SeatsPage() {
 
   // 선택한 좌석이 다른 방이거나 더 이상 이용 가능하지 않으면 선택 해제로 취급
   const selected = roomSeats.find(s => s.id === selectedId && isAvailable(s)) || null
+
+  // 7시간 모드에서 운영시간 밖이면 예약 버튼을 막는다 (백엔드도 409로 거절)
+  const closed = op ? !op.is_open_now : false
 
   const selectGender = (g) => { setGenderTab(g); setRoomIdx(0); setSelectedId(null); setError('') }
   const selectRoom = (i) => { setRoomIdx(i); setSelectedId(null); setError('') }
@@ -219,6 +229,7 @@ export default function SeatsPage() {
       setError(e.response?.data?.detail || '예약에 실패했습니다')
       setSelectedId(null)
       load()
+      loadOperation()
     } finally {
       setReserving(false)
     }
@@ -233,6 +244,8 @@ export default function SeatsPage() {
   return (
     <div>
       <h1 className="page-title">좌석 현황</h1>
+
+      <OperationBanner op={op} />
 
       {!user?.is_verified && (
         <div className="verify-gate">
@@ -296,11 +309,17 @@ export default function SeatsPage() {
         <div className="seat-action-bar">
           <div className="seat-action-info">
             <strong>{room.location} <span className="seat-no">{selected.seat_number}</span></strong>
-            <span>{selected.floor}층 · 예약 후 10분 내 QR 체크인</span>
+            <span>
+              {selected.floor}층 · 예약 후 10분 내 QR 체크인
+              {op?.usage_ends_at_if_checkin_now && !closed &&
+                ` · 지금 체크인하면 ${fmtTime(op.usage_ends_at_if_checkin_now)}까지`}
+            </span>
           </div>
           {user?.is_verified ? (
-            <button className="btn btn-primary" onClick={handleReserve} disabled={reserving}>
-              {reserving ? <span className="spinner" /> : '예약하기'}
+            <button className="btn btn-primary" onClick={handleReserve}
+              disabled={reserving || closed}
+              title={closed ? '지금은 이용 시간이 아니에요' : undefined}>
+              {reserving ? <span className="spinner" /> : closed ? '이용 시간 아님' : '예약하기'}
             </button>
           ) : (
             <button className="btn btn-primary" onClick={() => navigate('/verify')}>

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
-import { reservationApi } from '../../api/index.js'
-import { parseUTC } from '../../utils/helpers.js'
+import { operationApi, reservationApi } from '../../api/index.js'
+import { fmtTime, parseUTC } from '../../utils/helpers.js'
 
 const SCANNER_ELEMENT_ID = 'checkin-qr-reader'
 
@@ -40,6 +40,8 @@ export default function CheckinPage() {
   const [starting, setStarting] = useState(true)   // 카메라 기동 중
   const [scanHit, setScanHit] = useState(false)    // 성공 피드백(초록 테두리)
   const [cameraError, setCameraError] = useState('')
+  const [op, setOp] = useState(null)          // 체크인 전 예상 종료 시각 안내용
+  const [usageEnd, setUsageEnd] = useState('') // 체크인 후 확정된 종료 시각
 
   // 스캐너 인스턴스와 "처리 중" 플래그는 ref로 — 콜백이 최신 state를 못 보므로
   const scannerRef = useRef(null)      // 지금 화면이 쓰고 있는 스캐너
@@ -94,6 +96,10 @@ export default function CheckinPage() {
   }, [stopScanner])
 
   useEffect(() => {
+    operationApi.get().then(r => setOp(r.data)).catch(() => {})
+  }, [])
+
+  useEffect(() => {
     reservationApi.myList()
       .then(r => {
         const found = r.data.find(x => x.id === rid)
@@ -107,8 +113,9 @@ export default function CheckinPage() {
     setSubmitting(true)
     setError('')
     try {
-      await reservationApi.checkin(rid, token)
+      const res = await reservationApi.checkin(rid, token)
       if (unmountedRef.current) return
+      setUsageEnd(res.data?.usage_ends_at || '')
       setSuccess(true)
       setTimeout(() => navigate('/dashboard'), 2000)
     } catch (err) {
@@ -234,6 +241,9 @@ export default function CheckinPage() {
       <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎉</div>
       <h2>체크인 완료!</h2>
       <p className="text-muted mt-2">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용이 시작되었습니다.</p>
+      {usageEnd && (
+        <p className="usage-end-line">이용 종료 예정 <strong>{fmtTime(usageEnd)}</strong></p>
+      )}
       <p className="text-muted">잠시 후 대시보드로 이동합니다...</p>
     </div>
   )
@@ -277,6 +287,12 @@ export default function CheckinPage() {
         <p className="text-muted text-center" style={{ fontSize: '.92rem', marginBottom: 10 }}>
           <strong>현장 침대에 부착된 QR을 비춰주세요</strong>
         </p>
+
+        {op?.usage_ends_at_if_checkin_now && (
+          <p className="usage-end-line">
+            지금 체크인하면 <strong>{fmtTime(op.usage_ends_at_if_checkin_now)}</strong>까지 이용할 수 있어요
+          </p>
+        )}
 
         {/* 스캐너 엘리먼트는 항상 붙어 있어야 "다시 시도"가 같은 경로로 재시작할 수 있다 */}
         <div className={`scanner-frame${scanHit ? ' hit' : ''}`}>

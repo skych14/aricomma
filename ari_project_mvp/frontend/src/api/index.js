@@ -25,6 +25,12 @@ export const verificationApi = {
   adminReview: (id, data) => client.put(`/api/admin/verifications/${id}`, data),
 }
 
+// ── Operation mode ────────────────────────────────────────────────────────
+export const operationApi = {
+  get: () => client.get('/api/settings/operation'),
+  setMode: (mode) => client.put('/api/admin/settings/operation', { mode }),
+}
+
 // ── Admin Users ───────────────────────────────────────────────────────────
 export const adminUserApi = {
   list: (params) => client.get('/api/admin/users', { params }),

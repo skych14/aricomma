@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { reservationApi } from '../../api/index.js'
+import { operationApi, reservationApi } from '../../api/index.js'
 import { useAuth } from '../../contexts/AuthContext.jsx'
-import { fmtDatetime, parseUTC, statusLabel, statusBadgeClass } from '../../utils/helpers.js'
+import { fmtDatetime, fmtTime, parseUTC, statusLabel, statusBadgeClass } from '../../utils/helpers.js'
 
-const MAX_USAGE_MS = 2 * 60 * 60 * 1000  // 백엔드 max_usage_seconds=7200 과 동기화
+// usage_ends_at 도입 전에 체크인된 예약을 위한 예전 계산 (백엔드 max_usage_seconds=7200)
+const MAX_USAGE_MS = 2 * 60 * 60 * 1000
+
+/** 이용 종료 예정 시각 — 서버가 확정한 값이 있으면 그 값, 없으면 예전 방식 */
+function usageEndIso(r) {
+  if (r?.usage_ends_at) return r.usage_ends_at
+  if (r?.checked_in_at) return new Date(parseUTC(r.checked_in_at).getTime() + MAX_USAGE_MS).toISOString()
+  return null
+}
 
 export default function DashboardPage() {
   const { user, refreshUser } = useAuth()
@@ -13,6 +21,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [actionMsg, setActionMsg] = useState('')
   const [actionError, setActionError] = useState('')
+  const [op, setOp] = useState(null)
 
   const load = async () => {
     try {
@@ -25,6 +34,7 @@ export default function DashboardPage() {
   useEffect(() => {
     refreshUser().catch(() => {})
     load()
+    operationApi.get().then(r => setOp(r.data)).catch(() => {})
   }, [])
 
   const active = reservations.find(r => ['pending', 'checked_in'].includes(r.status))
@@ -108,15 +118,20 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-              {active.status === 'checked_in' && active.checked_in_at && (
+              {active.status === 'checked_in' && (
                 <div className="status-card">
-                  <div className="label">자동 퇴실</div>
+                  <div className="label">이용 종료 예정</div>
                   <div className="value" style={{ fontSize: '1rem' }}>
-                    {fmtDatetime(new Date(parseUTC(active.checked_in_at).getTime() + MAX_USAGE_MS).toISOString())}
+                    {fmtTime(usageEndIso(active))}
                   </div>
                 </div>
               )}
             </div>
+            {active.status === 'pending' && op?.usage_ends_at_if_checkin_now && (
+              <div className="text-muted mt-2" style={{ fontSize: '.86rem' }}>
+                지금 체크인하면 <strong>{fmtTime(op.usage_ends_at_if_checkin_now)}</strong>까지 이용할 수 있어요
+              </div>
+            )}
             <div className="flex gap-2 mt-2">
               {active.status === 'pending' && (
                 <>

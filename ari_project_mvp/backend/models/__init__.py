@@ -4,6 +4,7 @@ from .seat import Seat
 from .reservation import Reservation
 from .usage_log import UsageLog
 from .audit_log import AuditLog
+from .app_setting import AppSetting
 
 __all__ = [
     "User",
@@ -12,4 +13,5 @@ __all__ = [
     "Reservation",
     "UsageLog",
     "AuditLog",
+    "AppSetting",
 ]

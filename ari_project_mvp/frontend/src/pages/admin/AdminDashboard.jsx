@@ -1,7 +1,74 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { adminUserApi, logApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
-import { errMsg, fmtDatetime, statusBadgeClass, statusLabel } from '../../utils/helpers.js'
+import { adminUserApi, logApi, operationApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
+import { errMsg, fmtDatetime, fmtTime, statusBadgeClass, statusLabel } from '../../utils/helpers.js'
+
+// ── 운영 모드 카드 ────────────────────────────────────────────────────────
+function OperationModeCard({ op, onChanged }) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  if (!op) return null
+
+  const isExtended = op.mode === 'extended'
+  const nextMode = isExtended ? 'standard' : 'extended'
+  const confirmText = isExtended
+    ? '평상시 모드로 바꾸면 10:00~17:00에만 예약할 수 있습니다. 지금 이용 중인 학생의 종료 시간은 그대로 유지됩니다. 진행할까요?'
+    : '시험기간 모드로 바꾸면 24시간 예약이 가능해집니다. 지금 이용 중인 학생의 종료 시간은 그대로 유지됩니다. 진행할까요?'
+
+  const apply = async () => {
+    setBusy(true); setError('')
+    try {
+      const r = await operationApi.setMode(nextMode)
+      setConfirming(false)
+      onChanged(r.data)   // 전환 직후 새 모드로 화면 갱신
+    } catch (e) { setError(errMsg(e)) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="card op-card">
+      <div className="card-title">운영 모드</div>
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="op-card-now">
+        <span className={`badge ${isExtended ? 'badge-reserved' : 'badge-approved'}`}>
+          {op.mode_label}
+        </span>
+        <span className="op-card-hours">
+          {isExtended
+            ? '24시간 개방 · 기본 2시간 (22:00~09:00 체크인은 최대 7시간)'
+            : `오늘 이용 시간 ${fmtTime(op.opens_at)}~${fmtTime(op.closes_at)} · 기본 2시간`}
+        </span>
+      </div>
+
+      <div className="op-card-state">
+        {op.is_open_now
+          ? <span className="op-card-open">지금 예약 가능</span>
+          : <span className="op-card-closed">지금은 예약 불가 · {fmtTime(op.next_open_at)}부터</span>}
+      </div>
+
+      {confirming ? (
+        <div className="op-card-confirm">
+          <p>{confirmText}</p>
+          <div className="flex gap-2">
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={apply}>
+              {busy ? <span className="spinner" /> : '전환'}
+            </button>
+            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setConfirming(false)}>
+              취소
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-outline btn-sm" onClick={() => setConfirming(true)}>
+          {isExtended ? '평상시 7시간 모드로 전환' : '시험기간 24시간 모드로 전환'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 // ── 탭 1: 인증 요청 ───────────────────────────────────────────────────────
 const REJECT_PRESETS = [
@@ -315,7 +382,7 @@ function ReservationsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>학생</th><th>학번</th><th>좌석</th><th>예약 시간</th><th>상태</th><th>체크인</th><th>퇴실</th></tr>
+              <tr><th>학생</th><th>학번</th><th>좌석</th><th>예약 시간</th><th>상태</th><th>체크인</th><th>종료 예정</th><th>퇴실</th></tr>
             </thead>
             <tbody>
               {reservations.map(r => (
@@ -326,10 +393,11 @@ function ReservationsTab() {
                   <td>{fmtDatetime(r.reserved_at)}</td>
                   <td><span className={`badge ${statusBadgeClass(r.status)}`}>{statusLabel(r.status)}</span></td>
                   <td>{fmtDatetime(r.checked_in_at)}</td>
+                  <td>{r.usage_ends_at ? fmtTime(r.usage_ends_at) : '—'}</td>
                   <td>{fmtDatetime(r.checked_out_at)}</td>
                 </tr>
               ))}
-              {reservations.length === 0 && <tr><td colSpan={7} className="text-center text-muted">내역 없음</td></tr>}
+              {reservations.length === 0 && <tr><td colSpan={8} className="text-center text-muted">내역 없음</td></tr>}
             </tbody>
           </table>
         </div>
@@ -550,6 +618,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('verifications')
   const [pendingCount, setPendingCount] = useState(0)
+  const [op, setOp] = useState(null)
 
   const loadPendingCount = useCallback(() => {
     verificationApi.adminList('pending')
@@ -558,6 +627,7 @@ export default function AdminDashboard() {
   }, [])
 
   useEffect(() => { loadPendingCount() }, [loadPendingCount])
+  useEffect(() => { operationApi.get().then(r => setOp(r.data)).catch(() => {}) }, [])
 
   const TABS = [
     { key: 'verifications', label: '인증', badge: pendingCount },
@@ -575,6 +645,8 @@ export default function AdminDashboard() {
           🖨️ QR 인쇄
         </button>
       </div>
+      <OperationModeCard op={op} onChanged={setOp} />
+
       <div className="tabs tabs-scroll" style={{ marginTop: 16 }}>
         {TABS.map(t => (
           <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`}

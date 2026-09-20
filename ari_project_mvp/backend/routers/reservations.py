@@ -20,6 +20,14 @@ from schemas.reservation import (
 from utils.audit import write_audit
 from utils.auth import get_active_student, get_current_admin, get_current_user
 from utils.expiry import expire_pending_reservations
+from utils.operation import (
+    CLOSED_MESSAGE,
+    compute_usage_end,
+    is_reservation_open,
+    to_kst,
+    to_utc,
+)
+from utils.settings_store import get_operation_mode
 
 router = APIRouter(tags=["reservations"])
 
@@ -35,6 +43,7 @@ def _build_detail(r: Reservation, db: Session) -> ReservationDetail:
         expires_at=r.expires_at,
         checked_in_at=r.checked_in_at,
         checked_out_at=r.checked_out_at,
+        usage_ends_at=r.usage_ends_at,
         seat_number=seat.seat_number if seat else None,
         seat_type=seat.seat_type if seat else None,
         location=seat.location if seat else None,
@@ -50,6 +59,12 @@ def create_reservation(
 ):
     # 요청 시점에 만료 보정
     expire_pending_reservations(db)
+
+    # 운영시간 확인 (7시간 모드일 때만 제한, 24시간 모드는 언제든 허용)
+    now = datetime.utcnow()
+    mode = get_operation_mode(db)
+    if not is_reservation_open(to_kst(now), mode):
+        raise HTTPException(status_code=409, detail=CLOSED_MESSAGE)
 
     # 좌석 존재 확인
     seat = db.query(Seat).filter(Seat.id == body.seat_id, Seat.is_active == True).first()
@@ -83,7 +98,6 @@ def create_reservation(
     if seat_active:
         raise HTTPException(status_code=409, detail="이미 예약 중이거나 사용 중인 좌석입니다")
 
-    now = datetime.utcnow()
     expiry = timedelta(seconds=settings.reservation_expiry_seconds)
     reservation = Reservation(
         id=str(uuid.uuid4()),
@@ -225,6 +239,10 @@ def checkin(
     now = datetime.utcnow()
     r.status = "checked_in"
     r.checked_in_at = now
+    # 이용 종료 시각은 "체크인 시각"과 그 시점의 운영 모드로 확정한다.
+    # 이후 관리자가 모드를 바꿔도 이 값은 다시 계산하지 않는다.
+    mode = get_operation_mode(db)
+    r.usage_ends_at = to_utc(compute_usage_end(to_kst(now), mode))
 
     usage = UsageLog(
         id=str(uuid.uuid4()),
@@ -241,7 +259,12 @@ def checkin(
         actor_id=current_user.id,
         target_type="reservation",
         target_id=r.id,
-        detail={"seat_id": r.seat_id, "seat_number": seat.seat_number},
+        detail={
+            "seat_id": r.seat_id,
+            "seat_number": seat.seat_number,
+            "mode": mode,
+            "usage_ends_at": str(r.usage_ends_at),
+        },
         ip_address=request.client.host if request.client else None,
     )
     db.commit()
