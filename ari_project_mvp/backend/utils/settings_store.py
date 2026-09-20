@@ -14,6 +14,24 @@ from utils.operation import DEFAULT_MODE, normalize_mode
 OPERATION_MODE_KEY = "operation_mode"
 
 
+def get_value(db: Session, key: str) -> Optional[str]:
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    return row.value if row else None
+
+
+def set_value(db: Session, key: str, value: str, admin_id: Optional[str] = None) -> None:
+    """commit은 호출하는 쪽에서 한다."""
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    if row:
+        row.value = value
+        row.updated_at = datetime.utcnow()
+        row.updated_by = admin_id
+    else:
+        db.add(AppSetting(
+            key=key, value=value, updated_at=datetime.utcnow(), updated_by=admin_id,
+        ))
+
+
 def get_operation_mode(db: Session) -> str:
     """현재 운영 모드. 값이 없거나 알 수 없는 값이면 기본값(standard)."""
     row = db.query(AppSetting).filter(AppSetting.key == OPERATION_MODE_KEY).first()

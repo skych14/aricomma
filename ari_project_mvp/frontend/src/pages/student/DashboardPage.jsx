@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { operationApi, reservationApi } from '../../api/index.js'
+import PenaltyNotice from '../../components/PenaltyNotice.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { fmtDatetime, fmtTime, parseUTC, statusLabel, statusBadgeClass } from '../../utils/helpers.js'
 
@@ -75,6 +76,8 @@ export default function DashboardPage() {
     <div>
       <h1 className="page-title">대시보드</h1>
 
+      <PenaltyNotice />
+
       {actionMsg && <div className="alert alert-success">{actionMsg}</div>}
       {actionError && <div className="alert alert-error">{actionError}</div>}
 
@@ -87,7 +90,10 @@ export default function DashboardPage() {
       </div>
 
       {user?.is_suspended && (
-        <div className="alert alert-error">계정이 정지 상태입니다. 관리자에게 문의하세요.</div>
+        <div className="alert alert-error">
+          계정이 정지 상태입니다.
+          {user?.suspended_until && <> 해제 예정: {fmtDatetime(user.suspended_until)}</>}
+        </div>
       )}
 
       {/* 현재 예약 카드 */}

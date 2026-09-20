@@ -46,6 +46,22 @@ export function fmtDuration(minutes) {
   return `${m}분`
 }
 
+export const REPORT_CATEGORIES = [
+  { key: 'no_checkout', label: '미퇴실', desc: '이용 시간이 끝났는데 자리를 비우지 않았어요' },
+  { key: 'eating', label: '취식', desc: '학우실 안에서 음식을 먹었어요' },
+  { key: 'noise', label: '심한 소음', desc: '통화·대화·알람 등으로 쉬기 어려웠어요' },
+]
+
+export const PENALTY_LEVELS = [
+  { key: 'warning', label: '경고' },
+  { key: 'suspend_week', label: '1주 정지' },
+  { key: 'suspend_term', label: '한 학기 정지' },
+]
+
+export function penaltyLevelLabel(level) {
+  return PENALTY_LEVELS.find(l => l.key === level)?.label || level
+}
+
 const STATUS_KO = {
   pending: '예약 대기',
   checked_in: '이용 중',

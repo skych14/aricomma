@@ -46,6 +46,8 @@ def ensure_column(engine: Engine, table: str, column: str, ddl_type: str) -> boo
 PENDING_COLUMNS = [
     # 이용 종료 예정 시각(UTC). 값이 없는 기존 예약은 checked_in_at + max_usage_seconds로 처리한다.
     ("reservations", "usage_ends_at", "DATETIME"),
+    # 정지 해제 예정 시각(UTC). NULL이면 기한 없는(관리자 수동) 정지이거나 정지 아님.
+    ("users", "suspended_until", "DATETIME"),
 ]
 
 

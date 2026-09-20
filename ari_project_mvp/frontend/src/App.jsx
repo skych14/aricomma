@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
 import DashboardPage from './pages/student/DashboardPage.jsx'
 import SeatsPage from './pages/student/SeatsPage.jsx'
+import ReportPage from './pages/student/ReportPage.jsx'
 import VerificationPage from './pages/student/VerificationPage.jsx'
 
 // 무거운 QR 라이브러리(html5-qrcode, qrcode.react)는 해당 화면에서만 받아오도록 분리
@@ -38,6 +39,9 @@ export default function App() {
           } />
           <Route path="/verify" element={
             <ProtectedRoute><Layout><VerificationPage /></Layout></ProtectedRoute>
+          } />
+          <Route path="/report" element={
+            <ProtectedRoute><Layout><ReportPage /></Layout></ProtectedRoute>
           } />
           <Route path="/seats" element={
             <ProtectedRoute><Layout><SeatsPage /></Layout></ProtectedRoute>

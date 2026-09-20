@@ -24,6 +24,10 @@ function StudentLayout({ user, onLogout, children }) {
           <span className="bottom-nav-icon">🏠</span>
           <span>대시보드</span>
         </NavLink>
+        <NavLink to="/report" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span className="bottom-nav-icon">🚨</span>
+          <span>신고</span>
+        </NavLink>
         <NavLink to="/verify" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
           <span className="bottom-nav-icon">📋</span>
           <span>인증</span>

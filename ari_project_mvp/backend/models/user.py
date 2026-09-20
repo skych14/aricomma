@@ -17,6 +17,8 @@ class User(Base):
     role = Column(String, nullable=False, default="student")  # student | admin
     is_verified = Column(Boolean, default=False, nullable=False)
     is_suspended = Column(Boolean, default=False, nullable=False)
+    # 정지 해제 예정 시각(UTC). 지나면 스케줄러/로그인 시점에 자동 해제된다.
+    suspended_until = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False

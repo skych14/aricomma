@@ -7,7 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 import models  # noqa: F401  — create_all이 모든 테이블을 알도록 모델을 먼저 등록
 from config import settings
 from database import Base, engine
-from routers import auth, logs, reservations, seats, settings as settings_router, users, verifications
+from routers import (
+    admin_reports,
+    auth,
+    logs,
+    reports,
+    reservations,
+    seats,
+    settings as settings_router,
+    users,
+    verifications,
+)
 from scheduler import start_scheduler, stop_scheduler
 from utils.db_migrate import run_migrations
 
@@ -48,6 +58,8 @@ app.include_router(reservations.router)
 app.include_router(logs.router)
 app.include_router(users.router)
 app.include_router(settings_router.router)
+app.include_router(reports.router)
+app.include_router(admin_reports.router)
 
 
 @app.get("/")

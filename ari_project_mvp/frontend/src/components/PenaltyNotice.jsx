@@ -1,0 +1,52 @@
+import React, { useEffect, useState } from 'react'
+import { reportApi } from '../api/index.js'
+import { fmtDate, fmtDatetime } from '../utils/helpers.js'
+
+/**
+ * 내가 받은 패널티 안내. 대시보드 상단에 눈에 띄게 보여준다.
+ * 확인(ack)을 누르면 사라지지만, 정지 중에는 계속 표시한다.
+ */
+export default function PenaltyNotice() {
+  const [penalties, setPenalties] = useState([])
+
+  const load = () => {
+    reportApi.myPenalties().then(r => setPenalties(r.data)).catch(() => {})
+  }
+  useEffect(() => { load() }, [])
+
+  const ack = async (id) => {
+    try { await reportApi.ackPenalty(id) } catch { /* 안내만 유지 */ }
+    load()
+  }
+
+  const now = Date.now()
+  const isActiveSuspension = (p) =>
+    p.ends_at && new Date(p.ends_at + (/[Z+]/.test(p.ends_at) ? '' : 'Z')).getTime() > now
+
+  // 확인 전이거나, 아직 정지 중이면 계속 보여준다
+  const visible = penalties.filter(p => !p.acknowledged_at || isActiveSuspension(p))
+  if (visible.length === 0) return null
+
+  return (
+    <>
+      {visible.map(p => {
+        const suspended = isActiveSuspension(p)
+        return (
+          <div key={p.id} className={`penalty-notice${suspended ? ' penalty-notice--suspend' : ''}`}>
+            <strong>
+              {suspended
+                ? `이용이 정지되었습니다 — 해제 예정 ${fmtDatetime(p.ends_at)}`
+                : `${p.level_label}를 받았습니다`}
+            </strong>
+            <p className="penalty-notice-reason">
+              사유: {p.reason} · {fmtDate(p.starts_at)}
+            </p>
+            {!p.acknowledged_at && (
+              <button className="btn btn-sm btn-outline" onClick={() => ack(p.id)}>확인</button>
+            )}
+          </div>
+        )
+      })}
+    </>
+  )
+}

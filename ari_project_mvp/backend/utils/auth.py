@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from config import settings
 from database import get_db
 from models.user import User
+from utils.operation import to_kst
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -50,6 +51,15 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다")
+
+    # 서버가 자는 동안 정지 기간이 끝났을 수 있으므로 여기서도 확인해 즉시 풀어준다
+    now = datetime.utcnow()
+    if user.is_suspended and user.suspended_until and user.suspended_until <= now:
+        user.is_suspended = False
+        user.suspended_until = None
+        user.updated_at = now
+        db.commit()
+        db.refresh(user)
     return user
 
 
@@ -74,7 +84,16 @@ def get_verified_student(user: User = Depends(get_current_student)) -> User:
     return user
 
 
+def suspension_message(user: User) -> str:
+    """정지 안내 문구. 해제 예정일이 있으면 함께 알려준다 (한국시간 표기)."""
+    base = "계정이 정지되어 예약할 수 없습니다"
+    if not user.suspended_until:
+        return base
+    kst = to_kst(user.suspended_until)
+    return f"{base} (해제 예정: {kst.month}월 {kst.day}일 {kst:%H:%M})"
+
+
 def get_active_student(user: User = Depends(get_verified_student)) -> User:
     if user.is_suspended:
-        raise HTTPException(status_code=403, detail="계정이 정지되어 예약할 수 없습니다")
+        raise HTTPException(status_code=403, detail=suspension_message(user))
     return user

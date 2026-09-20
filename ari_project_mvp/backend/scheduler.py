@@ -1,7 +1,11 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from database import SessionLocal
-from utils.expiry import auto_checkout_overdue_reservations, expire_pending_reservations
+from utils.expiry import (
+    auto_checkout_overdue_reservations,
+    expire_pending_reservations,
+    lift_expired_suspensions,
+)
 
 _scheduler = BackgroundScheduler()
 
@@ -15,6 +19,9 @@ def _job():
         m = auto_checkout_overdue_reservations(db)
         if m:
             print(f"[scheduler] {m}개 예약 자동 퇴실 처리")
+        k = lift_expired_suspensions(db)
+        if k:
+            print(f"[scheduler] {k}개 계정 정지 자동 해제")
     finally:
         db.close()
 
@@ -22,7 +29,7 @@ def _job():
 def start_scheduler():
     _scheduler.add_job(_job, "interval", minutes=1, id="expire_reservations")
     _scheduler.start()
-    print("[scheduler] 예약 만료/자동 퇴실 스케줄러 시작 (1분 간격)")
+    print("[scheduler] 예약 만료/자동 퇴실/정지 해제 스케줄러 시작 (1분 간격)")
 
 
 def stop_scheduler():

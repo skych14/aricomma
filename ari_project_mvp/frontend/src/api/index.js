@@ -25,6 +25,23 @@ export const verificationApi = {
   adminReview: (id, data) => client.put(`/api/admin/verifications/${id}`, data),
 }
 
+// ── Reports & Penalties ───────────────────────────────────────────────────
+export const reportApi = {
+  create: (data) => client.post('/api/reports', data),
+  myList: () => client.get('/api/reports/me'),
+  myPenalties: () => client.get('/api/penalties/me'),
+  ackPenalty: (id) => client.post(`/api/penalties/${id}/ack`),
+  // admin
+  adminList: (status) =>
+    client.get('/api/admin/reports', { params: status ? { status } : {} }),
+  adminCandidates: (id) => client.get(`/api/admin/reports/${id}/candidates`),
+  adminReview: (id, data) => client.put(`/api/admin/reports/${id}`, data),
+  adminPenalties: (user_id) =>
+    client.get('/api/admin/penalties', { params: user_id ? { user_id } : {} }),
+  adminRevoke: (id) => client.post(`/api/admin/penalties/${id}/revoke`),
+  adminResetCounter: () => client.post('/api/admin/penalties/reset-counter'),
+}
+
 // ── Operation mode ────────────────────────────────────────────────────────
 export const operationApi = {
   get: () => client.get('/api/settings/operation'),

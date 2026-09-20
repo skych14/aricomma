@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from config import settings
 from models.reservation import Reservation
+from models.user import User
 from models.usage_log import UsageLog
 from utils.audit import write_audit
 
@@ -97,3 +98,36 @@ def auto_checkout_overdue_reservations(db: Session) -> int:
         db.commit()
 
     return len(overdue)
+
+
+def lift_expired_suspensions(db: Session) -> int:
+    """해제 예정 시각이 지난 정지를 푼다.
+
+    suspended_until이 NULL인 정지(관리자가 기한 없이 건 것)는 건드리지 않는다.
+    """
+    now = datetime.utcnow()
+    users = (
+        db.query(User)
+        .filter(
+            User.is_suspended.is_(True),
+            User.suspended_until.isnot(None),
+            User.suspended_until <= now,
+        )
+        .all()
+    )
+    for u in users:
+        u.is_suspended = False
+        u.suspended_until = None
+        u.updated_at = now
+        write_audit(
+            db,
+            action_type="SUSPENSION_LIFTED",
+            target_type="user",
+            target_id=u.id,
+            detail={"student_id": u.student_id, "reason": "해제 예정 시각 경과"},
+        )
+
+    if users:
+        db.commit()
+
+    return len(users)

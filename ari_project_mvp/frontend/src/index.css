@@ -645,3 +645,65 @@ tr:hover td { background: var(--gray-50); }
   background: var(--warning-light); border-radius: var(--radius); padding: 12px;
 }
 .op-card-confirm p { font-size: .87rem; color: var(--gray-700); margin-bottom: 10px; }
+
+/* ── 민원 신고 / 패널티 ─────────────────────────────────── */
+
+/* 신고 유형 선택 */
+.report-categories { display: flex; flex-direction: column; gap: 8px; }
+.report-category {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 11px 12px; border-radius: var(--radius);
+  border: 1.5px solid var(--gray-200); background: #fff;
+  -webkit-tap-highlight-color: transparent;
+}
+.report-category strong { display: block; font-size: .92rem; color: var(--gray-900); }
+.report-category span { display: block; margin-top: 2px; font-size: .8rem; color: var(--gray-600); }
+.report-category.active { border-color: var(--primary); background: var(--primary-light); }
+.report-category.active strong { color: var(--primary-dark); }
+
+.report-notice {
+  background: var(--gray-50); border-radius: var(--radius); padding: 11px 12px;
+  margin-bottom: 14px; font-size: .8rem; color: var(--gray-600); line-height: 1.55;
+}
+
+/* 학생 패널티 안내 */
+.penalty-notice {
+  border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
+  background: var(--warning-light); border: 1.5px solid #fcd34d; color: var(--warning);
+}
+.penalty-notice--suspend {
+  background: var(--danger-light); border-color: #fca5a5; color: var(--danger);
+}
+.penalty-notice strong { display: block; font-size: .96rem; line-height: 1.45; }
+.penalty-notice-reason { margin: 4px 0 10px; font-size: .85rem; word-break: break-word; }
+
+/* 관리자 신고 상세 */
+.report-detail {
+  background: var(--gray-50); border-radius: var(--radius); padding: 10px 12px;
+}
+.report-detail-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 4px 0;
+}
+.report-detail-row > span { color: var(--gray-600); font-size: .82rem; flex-shrink: 0; }
+.report-detail-row > strong { font-size: .92rem; text-align: right; word-break: break-all; }
+.report-detail-memo {
+  margin-top: 8px; padding: 10px 12px; border-radius: var(--radius);
+  background: #fff; border: 1px solid var(--gray-200);
+  font-size: .87rem; white-space: pre-wrap; word-break: break-word;
+}
+
+/* 대상자 후보 */
+.candidate-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.candidate {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 10px 12px; border-radius: var(--radius);
+  border: 1.5px solid var(--gray-200); background: #fff;
+  -webkit-tap-highlight-color: transparent;
+}
+.candidate:disabled { opacity: .5; cursor: not-allowed; }
+.candidate.active { border-color: var(--primary); background: var(--primary-light); }
+.candidate-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.candidate-head strong { font-size: .93rem; }
+.candidate-meta { margin-top: 3px; font-size: .79rem; color: var(--gray-600); }

@@ -8,12 +8,15 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models.reservation import Reservation
+from models.penalty import Penalty
+from models.report import Report
 from models.usage_log import UsageLog
 from models.user import User
 from models.verification import VerificationRequest
 from schemas.user import AdminUserResponse, AdminUserUpdate
 from utils.audit import write_audit
 from utils.auth import get_current_admin
+from utils.penalty import counter_reset_at, penalty_counts
 from utils.upload_files import delete_upload
 
 router = APIRouter(prefix="/api/admin/users", tags=["admin-users"])
@@ -54,6 +57,7 @@ def list_users(
         query = query.filter(User.is_suspended.is_(True))
 
     users = query.order_by(User.created_at.desc()).all()
+    penalties = penalty_counts(db, [u.id for u in users], counter_reset_at(db))
     return [
         AdminUserResponse(
             id=u.id,
@@ -65,6 +69,8 @@ def list_users(
             is_suspended=u.is_suspended,
             created_at=u.created_at,
             reservation_count=counts.get(u.id, 0),
+            penalty_count=penalties.get(u.id, 0),
+            suspended_until=u.suspended_until,
         )
         for u in users
     ]
@@ -98,6 +104,9 @@ def update_user(
     if body.is_suspended is not None and body.is_suspended != user.is_suspended:
         changes["is_suspended"] = body.is_suspended
         user.is_suspended = body.is_suspended
+        if not body.is_suspended:
+            # 수동 해제 시 패널티로 잡힌 해제 예정일도 함께 비운다
+            user.suspended_until = None
     if body.is_verified is not None and body.is_verified != user.is_verified:
         changes["is_verified"] = body.is_verified
         user.is_verified = body.is_verified
@@ -130,6 +139,8 @@ def update_user(
         is_suspended=user.is_suspended,
         created_at=user.created_at,
         reservation_count=count or 0,
+        penalty_count=penalty_counts(db, [user.id], counter_reset_at(db)).get(user.id, 0),
+        suspended_until=user.suspended_until,
     )
 
 
@@ -165,6 +176,17 @@ def delete_user(
         delete_upload(v.file_path)
         db.delete(v)
 
+    # 이 사용자가 올린 신고와 받은 패널티도 함께 지운다.
+    # 남이 올린 신고에 대상자로 잡혀 있던 건은 대상만 비우고 기록은 남긴다.
+    penalty_count_deleted = (
+        db.query(Penalty).filter(Penalty.user_id == user.id).delete(synchronize_session=False)
+    )
+    report_count_deleted = (
+        db.query(Report).filter(Report.reporter_id == user.id).delete(synchronize_session=False)
+    )
+    for r in db.query(Report).filter(Report.accused_user_id == user.id).all():
+        r.accused_user_id = None
+
     usage_count = (
         db.query(UsageLog).filter(UsageLog.user_id == user.id).delete(synchronize_session=False)
     )
@@ -187,6 +209,8 @@ def delete_user(
             "reservations_deleted": reservation_count,
             "usage_logs_deleted": usage_count,
             "verifications_deleted": len(verifications),
+            "reports_deleted": report_count_deleted,
+            "penalties_deleted": penalty_count_deleted,
         },
         ip_address=request.client.host if request.client else None,
         commit=True,

@@ -5,6 +5,8 @@ from .reservation import Reservation
 from .usage_log import UsageLog
 from .audit_log import AuditLog
 from .app_setting import AppSetting
+from .report import Report
+from .penalty import Penalty
 
 __all__ = [
     "User",
@@ -14,4 +16,6 @@ __all__ = [
     "UsageLog",
     "AuditLog",
     "AppSetting",
+    "Report",
+    "Penalty",
 ]

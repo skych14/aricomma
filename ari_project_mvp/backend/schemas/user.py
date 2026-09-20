@@ -39,6 +39,7 @@ class UserResponse(BaseModel):
     role: str
     is_verified: bool
     is_suspended: bool
+    suspended_until: Optional[datetime] = None   # 정지 해제 예정 시각
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -62,6 +63,8 @@ class AdminUserResponse(BaseModel):
     is_suspended: bool
     created_at: datetime
     reservation_count: int = 0
+    penalty_count: int = 0                        # 누적 초기화 시점 이후의 유효 패널티 수
+    suspended_until: Optional[datetime] = None    # 정지 해제 예정 시각 (없으면 기한 없음)
 
 
 class AdminUserUpdate(BaseModel):

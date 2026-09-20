@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { adminUserApi, logApi, operationApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
-import { errMsg, fmtDatetime, fmtTime, statusBadgeClass, statusLabel } from '../../utils/helpers.js'
+import { adminUserApi, logApi, operationApi, reportApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
+import {
+  PENALTY_LEVELS, errMsg, fmtDate, fmtDatetime, fmtTime,
+  penaltyLevelLabel, statusBadgeClass, statusLabel,
+} from '../../utils/helpers.js'
 
 // ── 운영 모드 카드 ────────────────────────────────────────────────────────
 function OperationModeCard({ op, onChanged }) {
@@ -468,6 +471,261 @@ function AuditTab() {
   )
 }
 
+// ── 탭: 신고 처리 ────────────────────────────────────────────────────────
+const REPORT_FILTERS = [
+  { key: 'pending', label: '접수됨' },
+  { key: '', label: '전체' },
+  { key: 'penalized', label: '처리 완료' },
+  { key: 'no_target', label: '대상 확인 불가' },
+  { key: 'rejected', label: '반려' },
+]
+
+const TERM_DEFAULT_DAYS = 120
+
+/** 오늘 + n일을 <input type="date">용 YYYY-MM-DD로 (한국시간 기준) */
+function dateInputValue(days) {
+  return new Date(Date.now() + days * 86400000)
+    .toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })
+}
+
+function ReportDetailModal({ report, onClose, onReviewed }) {
+  const [candidates, setCandidates] = useState(null)
+  const [selected, setSelected] = useState(null)   // 후보 user_id
+  const [level, setLevel] = useState('')
+  const [endsAt, setEndsAt] = useState(dateInputValue(TERM_DEFAULT_DAYS))
+  const [note, setNote] = useState('')
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    reportApi.adminCandidates(report.id)
+      .then(r => setCandidates(r.data))
+      .catch(e => { setError(errMsg(e)); setCandidates([]) })
+  }, [report.id])
+
+  // 후보를 고르면 권장 단계를 기본값으로 채운다 (관리자가 바꿀 수 있다)
+  const pick = (c) => {
+    setSelected(c.user_id)
+    setLevel(c.recommended_level)
+    setError('')
+  }
+
+  const target = candidates?.find(c => c.user_id === selected)
+  const isTerm = level === 'suspend_term'
+
+  const submit = async (action) => {
+    setBusy(true); setError('')
+    try {
+      const body = { action, admin_note: note.trim() || undefined }
+      if (action === 'penalize') {
+        body.accused_user_id = selected
+        body.level = level
+        if (isTerm) body.ends_at = new Date(`${endsAt}T23:59:00+09:00`).toISOString()
+      }
+      await reportApi.adminReview(report.id, body)
+      onReviewed(action === 'penalize' ? '패널티를 부과했습니다'
+        : action === 'no_target' ? '대상 확인 불가로 종결했습니다' : '반려했습니다')
+    } catch (e) { setError(errMsg(e)); setConfirming(false) }
+    finally { setBusy(false) }
+  }
+
+  const canPenalize = selected && level && (!isTerm || endsAt) && !target?.is_admin
+  const canReject = note.trim().length > 0
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="신고 상세">
+      <div className="card modal-card">
+        <div className="card-title">신고 상세</div>
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <div className="report-detail">
+          <div className="report-detail-row"><span>유형</span><strong>{report.category_label}</strong></div>
+          <div className="report-detail-row">
+            <span>좌석</span><strong>{report.location} {report.seat_number}</strong>
+          </div>
+          <div className="report-detail-row">
+            <span>시간대</span><strong>{fmtTime(report.occurred_from)}~{fmtTime(report.occurred_to)}</strong>
+          </div>
+          <div className="report-detail-row">
+            <span>신고자</span>
+            <strong>{report.reporter_name} <span className="mono-id">{report.reporter_student_id}</span></strong>
+          </div>
+        </div>
+        {report.memo && <div className="report-detail-memo">{report.memo}</div>}
+
+        <div className="card-title" style={{ marginTop: 16 }}>그 시간대 이용자</div>
+        {candidates === null ? (
+          <div className="loading-box"><span className="spinner" /></div>
+        ) : candidates.length === 0 ? (
+          <div className="alert alert-warning">
+            그 시간대에 이 좌석을 이용한 기록이 없습니다. 대상 확인 불가로 종결할 수 있어요.
+          </div>
+        ) : (
+          <ul className="candidate-list">
+            {candidates.map(c => (
+              <li key={c.reservation_id}>
+                <button type="button"
+                  className={`candidate${selected === c.user_id ? ' active' : ''}`}
+                  aria-pressed={selected === c.user_id}
+                  disabled={c.is_admin}
+                  onClick={() => pick(c)}>
+                  <div className="candidate-head">
+                    <strong>{c.name} <span className="mono-id">{c.student_id}</span></strong>
+                    <span className={`badge ${c.overlapped ? 'badge-pending' : 'badge-reserved'}`}>
+                      {c.overlapped ? '시간대 겹침' : '직전 이용'}
+                    </span>
+                  </div>
+                  <div className="candidate-meta">
+                    {fmtTime(c.checked_in_at)}~{c.checked_out_at ? fmtTime(c.checked_out_at) : '이용 중'}
+                    {' · '}
+                    {c.checkout_kind === 'auto' ? '자동 퇴실'
+                      : c.checkout_kind === 'self' ? '본인 퇴실' : '퇴실 기록 없음'}
+                  </div>
+                  <div className="candidate-meta">
+                    누적 {c.penalty_count}회 · 권장 {penaltyLevelLabel(c.recommended_level)}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {selected && (
+          <div className="form-group" style={{ marginTop: 12 }}>
+            <label className="form-label">패널티 단계</label>
+            <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+              {PENALTY_LEVELS.map(l => (
+                <button type="button" key={l.key}
+                  className={`btn btn-sm ${level === l.key ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setLevel(l.key)}>{l.label}</button>
+              ))}
+            </div>
+            {isTerm && (
+              <div style={{ marginTop: 8 }}>
+                <label className="form-label">해제 예정일</label>
+                <input className="form-input" type="date" value={endsAt}
+                  min={dateInputValue(1)} onChange={e => setEndsAt(e.target.value)} />
+              </div>
+            )}
+            {level === 'suspend_week' && (
+              <div className="form-hint">1주 정지의 해제일은 부과 시각 기준으로 서버가 계산합니다.</div>
+            )}
+          </div>
+        )}
+
+        <div className="form-group">
+          <label className="form-label">관리자 메모 <span className="text-muted">(반려 시 필수)</span></label>
+          <input className="form-input" value={note} onChange={e => setNote(e.target.value)}
+            placeholder="처리 사유" />
+        </div>
+
+        {confirming ? (
+          <div className="op-card-confirm">
+            <p>
+              {target?.name}({target?.student_id})에게 {penaltyLevelLabel(level)}를 부과합니다.
+              진행 중인 예약은 취소됩니다. 진행할까요?
+            </p>
+            <div className="flex gap-2">
+              <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => submit('penalize')}>
+                {busy ? <span className="spinner" /> : '부과'}
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setConfirming(false)}>
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+            <button className="btn btn-danger btn-sm" disabled={!canPenalize || busy}
+              onClick={() => setConfirming(true)}>패널티 부과</button>
+            <button className="btn btn-ghost btn-sm" disabled={busy}
+              onClick={() => submit('no_target')}>대상 확인 불가로 종결</button>
+            <button className="btn btn-ghost btn-sm" disabled={!canReject || busy}
+              onClick={() => submit('reject')}>반려</button>
+            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={onClose}>닫기</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ReportsTab({ onPendingCount }) {
+  const [reports, setReports] = useState([])
+  const [filter, setFilter] = useState('pending')
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState(null)
+  const [msg, setMsg] = useState('')
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await reportApi.adminList(filter || null)
+      setReports(r.data)
+    } catch (e) { setError(errMsg(e)) }
+    finally { setLoading(false) }
+  }, [filter])
+
+  useEffect(() => { load() }, [load])
+
+  const afterReview = (text) => {
+    setMsg(text); setError(''); setSelected(null)
+    load(); onPendingCount?.()
+  }
+
+  return (
+    <div>
+      {msg && <div className="alert alert-success">{msg}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
+      <div className="filter-row">
+        {REPORT_FILTERS.map(f => (
+          <button key={f.key} className={`btn btn-sm ${filter === f.key ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFilter(f.key)}>{f.label}</button>
+        ))}
+      </div>
+
+      {loading ? <div className="loading-box"><span className="spinner" /></div> : (
+        <ul className="record-list">
+          {reports.map(r => (
+            <li key={r.id} className="record-card">
+              <div className="record-card-head">
+                <div>
+                  <strong>{r.category_label}</strong>{' '}
+                  <span className="text-muted">{r.location} {r.seat_number}</span>
+                </div>
+                <span className={`badge ${r.status === 'pending' ? 'badge-pending' : 'badge-approved'}`}>
+                  {r.status_label}
+                </span>
+              </div>
+              <div className="record-card-meta">
+                {fmtTime(r.occurred_from)}~{fmtTime(r.occurred_to)} · 접수 {fmtDatetime(r.created_at)}
+              </div>
+              <div className="record-card-meta">
+                신고자 {r.reporter_name} <span className="mono-id">{r.reporter_student_id}</span>
+                {r.accused_name && <> · 대상 {r.accused_name} <span className="mono-id">{r.accused_student_id}</span></>}
+              </div>
+              {r.memo && <div className="record-card-note">{r.memo}</div>}
+              {r.admin_note && <div className="record-card-note text-muted">처리 메모: {r.admin_note}</div>}
+              {r.status === 'pending' && (
+                <div className="record-card-actions">
+                  <button className="btn btn-sm btn-outline" onClick={() => setSelected(r)}>처리</button>
+                </div>
+              )}
+            </li>
+          ))}
+          {reports.length === 0 && <li className="text-center text-muted" style={{ padding: 20 }}>내역 없음</li>}
+        </ul>
+      )}
+
+      {selected && (
+        <ReportDetailModal report={selected} onClose={() => setSelected(null)} onReviewed={afterReview} />
+      )}
+    </div>
+  )
+}
+
 // ── 탭: 사용자 관리 ──────────────────────────────────────────────────────
 const USER_FILTERS = [
   { key: '', label: '전체' },
@@ -513,6 +771,65 @@ function DeleteUserModal({ user, onClose, onDeleted }) {
   )
 }
 
+function PenaltyListModal({ user, onClose, onChanged }) {
+  const [rows, setRows] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const load = useCallback(() => {
+    reportApi.adminPenalties(user.id)
+      .then(r => setRows(r.data))
+      .catch(e => { setError(errMsg(e)); setRows([]) })
+  }, [user.id])
+  useEffect(() => { load() }, [load])
+
+  const revoke = async (id) => {
+    setBusy(true); setError('')
+    try { await reportApi.adminRevoke(id); load(); onChanged() }
+    catch (e) { setError(errMsg(e)) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="패널티 내역">
+      <div className="card modal-card">
+        <div className="card-title">
+          패널티 내역 — {user.name} <span className="mono-id">{user.student_id}</span>
+        </div>
+        {error && <div className="alert alert-error">{error}</div>}
+        {rows === null ? <div className="loading-box"><span className="spinner" /></div>
+          : rows.length === 0 ? <div className="text-muted">패널티 내역이 없습니다.</div> : (
+          <ul className="record-list">
+            {rows.map(p => (
+              <li key={p.id} className={`record-card${p.revoked_at ? ' is-suspended' : ''}`}>
+                <div className="record-card-head">
+                  <strong>{p.level_label}</strong>
+                  {p.revoked_at
+                    ? <span className="badge badge-rejected">취소됨</span>
+                    : <span className="badge badge-pending">유효</span>}
+                </div>
+                <div className="record-card-meta">
+                  {fmtDate(p.starts_at)}
+                  {p.ends_at && <> ~ {fmtDatetime(p.ends_at)}</>}
+                  {p.acknowledged_at && ' · 학생 확인함'}
+                </div>
+                <div className="record-card-note">{p.reason}</div>
+                {!p.revoked_at && (
+                  <div className="record-card-actions">
+                    <button className="btn btn-sm btn-ghost" disabled={busy}
+                      onClick={() => revoke(p.id)}>패널티 취소</button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <button className="btn btn-ghost btn-sm mt-2" onClick={onClose}>닫기</button>
+      </div>
+    </div>
+  )
+}
+
 function UsersTab() {
   const [users, setUsers] = useState([])
   const [q, setQ] = useState('')
@@ -520,6 +837,8 @@ function UsersTab() {
   const [filter, setFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
+  const [penaltyUser, setPenaltyUser] = useState(null)
+  const [resetting, setResetting] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
@@ -550,6 +869,24 @@ function UsersTab() {
     <div>
       {msg && <div className="alert alert-success">{msg}</div>}
       {error && <div className="alert alert-error">{error}</div>}
+
+      {resetting ? (
+        <div className="op-card-confirm" style={{ marginBottom: 12 }}>
+          <p>모든 학생의 누적 횟수가 0이 됩니다. 기록은 남습니다.</p>
+          <div className="flex gap-2">
+            <button className="btn btn-danger btn-sm" onClick={async () => {
+              try {
+                await reportApi.adminResetCounter()
+                setMsg('누적 횟수를 초기화했습니다'); setError(''); setResetting(false); load()
+              } catch (e) { setError(errMsg(e)); setResetting(false) }
+            }}>초기화</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setResetting(false)}>취소</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}
+          onClick={() => setResetting(true)}>누적 초기화</button>
+      )}
 
       <form className="filter-row" onSubmit={e => { e.preventDefault(); setSearch(q.trim()) }}>
         <input className="form-input" style={{ flex: 1, minWidth: 140 }} value={q}
@@ -583,6 +920,10 @@ function UsersTab() {
               <div className="record-card-meta">
                 {u.email} · 예약 {u.reservation_count}건 · 가입 {fmtDatetime(u.created_at)}
               </div>
+              <div className="record-card-meta">
+                누적 패널티 <strong>{u.penalty_count}회</strong>
+                {u.suspended_until && <> · 정지 해제 예정 {fmtDatetime(u.suspended_until)}</>}
+              </div>
               {u.role !== 'admin' && (
                 <div className="record-card-actions">
                   {u.is_suspended ? (
@@ -596,6 +937,7 @@ function UsersTab() {
                     <button className="btn btn-sm btn-ghost"
                       onClick={() => patch(u, { is_verified: false }, '인증 해제됨')}>인증 해제</button>
                   )}
+                  <button className="btn btn-sm btn-ghost" onClick={() => setPenaltyUser(u)}>패널티</button>
                   <button className="btn btn-sm btn-danger" onClick={() => setDeleting(u)}>삭제</button>
                 </div>
               )}
@@ -609,6 +951,11 @@ function UsersTab() {
         <DeleteUserModal user={deleting} onClose={() => setDeleting(null)}
           onDeleted={(text) => { setDeleting(null); setMsg(text); setError(''); load() }} />
       )}
+
+      {penaltyUser && (
+        <PenaltyListModal user={penaltyUser} onClose={() => setPenaltyUser(null)}
+          onChanged={() => { setMsg('패널티를 취소했습니다'); setError(''); load() }} />
+      )}
     </div>
   )
 }
@@ -619,6 +966,7 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState('verifications')
   const [pendingCount, setPendingCount] = useState(0)
   const [op, setOp] = useState(null)
+  const [pendingReports, setPendingReports] = useState(0)
 
   const loadPendingCount = useCallback(() => {
     verificationApi.adminList('pending')
@@ -626,11 +974,18 @@ export default function AdminDashboard() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => { loadPendingCount() }, [loadPendingCount])
+  const loadPendingReports = useCallback(() => {
+    reportApi.adminList('pending')
+      .then(r => setPendingReports(r.data.length))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => { loadPendingCount(); loadPendingReports() }, [loadPendingCount, loadPendingReports])
   useEffect(() => { operationApi.get().then(r => setOp(r.data)).catch(() => {}) }, [])
 
   const TABS = [
     { key: 'verifications', label: '인증', badge: pendingCount },
+    { key: 'reports', label: '신고', badge: pendingReports },
     { key: 'users', label: '사용자' },
     { key: 'seats', label: '좌석 관리' },
     { key: 'reservations', label: '예약/이용 로그' },
@@ -658,6 +1013,7 @@ export default function AdminDashboard() {
       </div>
       <div>
         {tab === 'verifications' && <VerificationsTab onPendingCount={loadPendingCount} />}
+        {tab === 'reports' && <ReportsTab onPendingCount={loadPendingReports} />}
         {tab === 'users' && <UsersTab />}
         {tab === 'seats' && <SeatsTab />}
         {tab === 'reservations' && <ReservationsTab />}
