@@ -41,10 +41,60 @@ export default function CheckinPage() {
   const inputRef = useRef()
 
   // 스캐너 인스턴스와 "처리 중" 플래그는 ref로 — 콜백이 최신 state를 못 보므로
-  const scannerRef = useRef(null)
-  const busyRef = useRef(false)      // API 호출 중이면 중복 스캔 무시
+  const scannerRef = useRef(null)      // 지금 화면이 쓰고 있는 스캐너
+  const genRef = useRef(0)             // 시작 요청 세대 — start/stop 때마다 증가
+  const pendingStartRef = useRef(null) // 진행 중인 시작 절차 (카메라 이중 기동 방지)
+  const modeRef = useRef('scan')       // 비동기 콜백이 읽을 최신 mode
+  const busyRef = useRef(false)        // API 호출 중이면 중복 스캔 무시
   const unmountedRef = useRef(false)
   const retryTimerRef = useRef(null)
+
+  // ── 인스턴스 강제 정지 ────────────────────────────────────────────────
+  // start()가 아직 끝나지 않아 SCANNING이 아닌 인스턴스도 안전하게 처리한다.
+  // stop()이 먹지 않는 시점이면 video에 붙은 트랙을 직접 끊어 카메라를 확실히 끈다.
+  const hardStop = useCallback(async (inst) => {
+    if (inst) {
+      try {
+        // Html5QrcodeScannerState: 2 = SCANNING, 3 = PAUSED
+        const st = inst.getState ? inst.getState() : 2
+        if (st === 2 || st === 3) await inst.stop()
+      } catch { /* 이미 정지됨 / 아직 시작 전 */ }
+    }
+    // clear()가 엘리먼트를 비우기 전에 남아 있는 트랙을 먼저 끊는다
+    const host = document.getElementById(SCANNER_ELEMENT_ID)
+    if (host) {
+      host.querySelectorAll('video').forEach(v => {
+        const stream = v.srcObject
+        if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop())
+        v.srcObject = null
+      })
+    }
+    if (inst) { try { inst.clear() } catch { /* noop */ } }
+  }, [])
+
+  // ── 스캐너 정지 ───────────────────────────────────────────────────────
+  // 세대를 올려 진행 중인 start()에게 "이 인스턴스는 버려라"라고 알린다.
+  // 아직 시작 중이라 여기서 못 끄더라도, start()가 끝나는 쪽에서 스스로 정리한다.
+  const stopScanner = useCallback(async () => {
+    genRef.current += 1
+    const inst = scannerRef.current
+    scannerRef.current = null
+    await hardStop(inst)
+  }, [hardStop])
+
+  // 언마운트 플래그. StrictMode의 개발 모드 이중 마운트에서 두 번째 마운트가
+  // 첫 번째의 언마운트 플래그를 물려받지 않도록 스캔 effect보다 먼저 선언한다.
+  useEffect(() => {
+    unmountedRef.current = false
+    return () => {
+      unmountedRef.current = true
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
+      stopScanner()
+    }
+  }, [stopScanner])
+
+  // mode 미러 — 아래 effect들과 비동기 콜백이 최신 값을 본다
+  useEffect(() => { modeRef.current = mode }, [mode])
 
   useEffect(() => {
     reservationApi.myList()
@@ -55,20 +105,6 @@ export default function CheckinPage() {
       .catch(() => setReservation(null))
       .finally(() => setLoading(false))
   }, [rid])
-
-  // ── 스캐너 정지 (언마운트 시 카메라가 남아 있으면 안 됨) ──────────────
-  const stopScanner = useCallback(async () => {
-    const inst = scannerRef.current
-    scannerRef.current = null
-    if (!inst) return
-    try {
-      // 이미 멈춘 스캐너에 stop()을 부르면 throw — 상태 확인 후 호출
-      if (inst.getState && inst.getState() === 2 /* SCANNING */) {
-        await inst.stop()
-      }
-    } catch { /* 이미 정지됨 */ }
-    try { inst.clear() } catch { /* noop */ }
-  }, [])
 
   const doCheckin = useCallback(async (token) => {
     setSubmitting(true)
@@ -91,7 +127,7 @@ export default function CheckinPage() {
       } else {
         // 다른 좌석 QR(400) 등 — 2초 뒤 스캔 재시작
         busyRef.current = false
-        if (mode === 'scan') {
+        if (modeRef.current === 'scan') {
           retryTimerRef.current = setTimeout(() => { startScanner() }, 2000)
         }
         return
@@ -99,57 +135,87 @@ export default function CheckinPage() {
     } finally {
       if (!unmountedRef.current) setSubmitting(false)
     }
-  }, [rid, navigate, mode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rid, navigate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 스캐너 시작 ────────────────────────────────────────────────────────
   const startScanner = useCallback(async () => {
+    // 앞선 시작 절차가 끝날 때까지 기다린다 — 카메라가 두 번 켜지지 않도록
+    if (pendingStartRef.current) { try { await pendingStartRef.current } catch { /* noop */ } }
     if (unmountedRef.current || scannerRef.current) return
+    if (modeRef.current !== 'scan') return
     if (!document.getElementById(SCANNER_ELEMENT_ID)) return
 
     setCameraError('')
     busyRef.current = false
-    try {
-      const inst = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
-      scannerRef.current = inst
-      await inst.start(
-        // iOS Safari / Android Chrome 모두 후면 카메라를 잡는 권장 설정
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: (vw, vh) => {
-            const edge = Math.floor(Math.min(vw, vh) * 0.72)
-            return { width: edge, height: edge }
+
+    // 여기부터 pendingStartRef 대입까지는 동기 — 두 호출이 끼어들 틈이 없다
+    const gen = ++genRef.current
+    const inst = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
+    scannerRef.current = inst
+
+    // start()가 끝난 시점에 아직 이 인스턴스를 써야 하는지
+    const stillWanted = () => (
+      !unmountedRef.current && modeRef.current === 'scan' &&
+      genRef.current === gen && scannerRef.current === inst
+    )
+
+    // 정리까지 포함한 절차 전체를 하나의 프라미스로 — 다음 start는 이게 끝난 뒤 시작
+    const proc = (async () => {
+      try {
+        await inst.start(
+          // iOS Safari / Android Chrome 모두 후면 카메라를 잡는 권장 설정
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: (vw, vh) => {
+              const edge = Math.floor(Math.min(vw, vh) * 0.72)
+              return { width: edge, height: edge }
+            },
+            aspectRatio: 1,
           },
-          aspectRatio: 1,
-        },
-        (decodedText) => {
-          // 같은 QR이 연속으로 읽혀도 API는 한 번만
-          if (busyRef.current) return
-          busyRef.current = true
-          const token = (decodedText || '').trim()
-          setScanHit(true)
-          // 호출 직후 카메라 정지
-          stopScanner().finally(() => {
-            setScanning(false)
-            doCheckin(token)
-          })
-        },
-        () => { /* 프레임마다 실패 콜백 — 무시 */ }
-      )
-      if (unmountedRef.current) { stopScanner(); return }
-      setScanning(true)
-    } catch (e) {
-      scannerRef.current = null
-      setScanning(false)
-      // 권한 거부 / 카메라 없음 / 시작 실패 → 수동 입력으로 전환
-      setCameraError(
-        e?.name === 'NotAllowedError' || String(e).includes('NotAllowed')
-          ? '카메라 권한이 거부되었습니다'
-          : '카메라를 시작할 수 없습니다'
-      )
-      setMode('manual')
+          (decodedText) => {
+            // 같은 QR이 연속으로 읽혀도 API는 한 번만
+            if (busyRef.current) return
+            busyRef.current = true
+            const token = (decodedText || '').trim()
+            setScanHit(true)
+            // 호출 직후 카메라 정지
+            stopScanner().finally(() => {
+              setScanning(false)
+              doCheckin(token)
+            })
+          },
+          () => { /* 프레임마다 실패 콜백 — 무시 */ }
+        )
+        // start()를 기다리는 사이에 언마운트됐거나 직접 입력으로 넘어갔을 수 있다.
+        // 그 경우 이 로컬 인스턴스를 직접 정지해야 카메라가 살아남지 않는다.
+        if (!stillWanted()) {
+          if (scannerRef.current === inst) scannerRef.current = null
+          await hardStop(inst)
+          return
+        }
+        setScanning(true)
+      } catch (e) {
+        if (scannerRef.current === inst) scannerRef.current = null
+        await hardStop(inst)
+        // 이미 화면을 벗어났다면 상태를 건드리지 않는다
+        if (unmountedRef.current || genRef.current !== gen) return
+        setScanning(false)
+        // 권한 거부 / 카메라 없음 / 시작 실패 → 수동 입력으로 전환
+        setCameraError(
+          e?.name === 'NotAllowedError' || String(e).includes('NotAllowed')
+            ? '카메라 권한이 거부되었습니다'
+            : '카메라를 시작할 수 없습니다'
+        )
+        setMode('manual')
+      }
+    })()
+
+    pendingStartRef.current = proc
+    try { await proc } finally {
+      if (pendingStartRef.current === proc) pendingStartRef.current = null
     }
-  }, [doCheckin, stopScanner])
+  }, [doCheckin, stopScanner, hardStop])
 
   // 스캔 모드 진입 시 자동 시작, 벗어나면 정지
   useEffect(() => {
@@ -158,16 +224,6 @@ export default function CheckinPage() {
     if (mode !== 'scan') { stopScanner(); setScanning(false); return }
     startScanner()
   }, [mode, loading, reservation, success, startScanner, stopScanner])
-
-  // 언마운트 정리
-  useEffect(() => {
-    unmountedRef.current = false
-    return () => {
-      unmountedRef.current = true
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
-      stopScanner()
-    }
-  }, [stopScanner])
 
   const switchToManual = () => {
     setMode('manual')
@@ -202,7 +258,7 @@ export default function CheckinPage() {
     <div className="card text-center">
       <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎉</div>
       <h2>체크인 완료!</h2>
-      <p className="text-muted mt-2">좌석 {reservation.seat_number} 이용이 시작되었습니다.</p>
+      <p className="text-muted mt-2">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용이 시작되었습니다.</p>
       <p className="text-muted">잠시 후 대시보드로 이동합니다...</p>
     </div>
   )
@@ -211,7 +267,7 @@ export default function CheckinPage() {
     <div className="card text-center">
       <div style={{ fontSize: '3rem' }}>✅</div>
       <h2 style={{ margin: '12px 0' }}>이미 체크인된 예약입니다</h2>
-      <p className="text-muted">좌석 {reservation.seat_number} 이용 중</p>
+      <p className="text-muted">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용 중</p>
       <button className="btn btn-primary mt-4" onClick={() => navigate('/dashboard')}>대시보드로</button>
     </div>
   )
@@ -232,7 +288,7 @@ export default function CheckinPage() {
       <div className="card">
         <div className="flex-between" style={{ marginBottom: 12, alignItems: 'flex-start' }}>
           <div>
-            <div className="section-title">예약 좌석: {reservation.seat_number || '—'}</div>
+            <div className="section-title">예약 좌석: <span className="seat-no">{reservation.seat_number || '—'}</span></div>
             <div className="text-muted">{reservation.location} · 침대</div>
           </div>
           <div className="text-center">

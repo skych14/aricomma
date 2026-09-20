@@ -289,7 +289,7 @@ export default function SeatsPage() {
       {selected && (
         <div className="seat-action-bar">
           <div className="seat-action-info">
-            <strong>{room.location} {selected.seat_number}</strong>
+            <strong>{room.location} <span className="seat-no">{selected.seat_number}</span></strong>
             <span>{selected.floor}층 · 예약 후 10분 내 QR 체크인</span>
           </div>
           <button className="btn btn-primary" onClick={handleReserve} disabled={reserving}>

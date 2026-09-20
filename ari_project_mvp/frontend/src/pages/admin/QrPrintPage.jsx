@@ -124,8 +124,10 @@ export default function QrPrintPage() {
                 <div className="qr-card-img">
                   <QRCodeSVG value={s.qr_token} level="M" size={132} includeMargin />
                 </div>
-                <div className="qr-card-name">{s.location} {s.seat_number}</div>
+                <div className="qr-card-name">{s.location} <span className="seat-no">{s.seat_number}</span></div>
                 <div className="qr-card-floor">{s.floor}층 ({s.floor === 1 ? '아래 침대' : '위 침대'})</div>
+                {/* 카메라를 못 쓸 때 직접 입력할 수 있도록 토큰도 함께 인쇄한다 */}
+                <div className="qr-card-token">{s.qr_token}</div>
                 <div className="qr-card-actions no-print">
                   <button className="btn btn-ghost btn-sm" disabled={busyId !== null}
                     onClick={() => rotateOne(s)}>
