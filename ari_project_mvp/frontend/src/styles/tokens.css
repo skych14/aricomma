@@ -1,0 +1,65 @@
+/* ── 디자인 토큰 ─────────────────────────────────────────────────────────
+   피그마 시안에서 뽑은 기준값. 이 파일이 색·글꼴·모서리·그림자의 유일한 출처다.
+   화면 CSS(index.css)나 컴포넌트에서 색상값을 직접 쓰지 말고 여기 변수를 참조한다.
+
+   쓰는 규칙
+   - 주황 면(--brand, --brand-strong, --brand-soft) 위에 흰 글자 금지.
+   - 읽어야 하는 주황 글자는 --brand-text. --brand-strong은 선·배지·아이콘·
+     로고(24px 이상)에만.
+   - 안내 문장은 --ink-muted. --ink-placeholder는 입력칸 placeholder 전용.
+   - 상태 색(--success/--danger/--warning)은 뜻이 있을 때만.
+   ───────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* 브랜드 */
+  --brand: #ffaf3f;            /* 넓은 면·아이콘·출입구 막대. 이 위 흰 글자 금지 */
+  --brand-strong: #f38e00;     /* 선택 좌석 테두리·배지·로고. 본문 글자로 쓰지 않음 */
+  --brand-soft: #ffd18f;       /* 주 버튼 채움 (글자는 --ink) */
+  --brand-text: #a85a00;       /* 읽어야 하는 주황 글자: 제목·링크·하단 문구·활성 탭 */
+  /* 면 */
+  --surface-page: #fff7e9;     /* 화면 바탕 */
+  --surface: #ffffff;          /* 카드·입력칸 */
+  --surface-tint: rgba(255,248,226,0.52); /* 메뉴 항목 */
+  /* 좌석 */
+  --seat-available: #ffe09d;
+  --seat-unavailable: #f2f2f2;
+  --seat-selected: var(--brand-strong);
+  /* 글자·선 */
+  --ink: #4d4d4d;
+  --ink-muted: #6b6b6b;        /* 안내 문장 */
+  --ink-placeholder: #939393;  /* 입력칸 placeholder 전용 */
+  --line: #aeaeae;
+  /* 상태 */
+  --success: #15803d; --success-bg: #dcfce7;
+  --danger: #b91c1c;  --danger-bg: #fee2e2;
+  --warning: #b45309; --warning-bg: #fef3c7;
+  /* 글꼴 */
+  --font-sans: "42dot Sans", "Noto Sans KR", -apple-system, system-ui, sans-serif;
+  --fs-logo: 32px; --fs-title: 18px; --fs-seat-number: 16px; --fs-body: 14px;
+  --fs-body-sm: 13px; --fs-label: 12px; --fs-seat-status: 11px;
+  /* 간격 */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --space-gutter: 45px;        /* 로그인·더보기 카드 좌우 여백, 좁은 화면에선 --space-4까지 */
+  /* 모서리 */
+  --radius-input: 7px; --radius-seat: 20px; --radius-card: 30px; --radius-pill: 999px;
+  /* 그림자 (주황빛만. 회색 그림자 금지) */
+  --shadow-card: 0 4px 12.7px rgba(255,175,63,0.5);
+  --shadow-pill: 0 4px 12.7px -2px rgba(255,149,0,0.5);
+  /* 크기 */
+  --seat-width: 95px; --seat-height: 66px;
+  --control-height: 44px;      /* 피그마는 33px지만 터치 영역 때문에 44px */
+}
+
+/* ── 시안 밖: 카메라 뷰포트·오버레이 전용 ────────────────────────────────
+   QR 스캐너 영상 위에 겹치는 요소들. 브랜드 면이 아니라 카메라 화면이라
+   위 팔레트로 대체할 수 없어 여기 따로 둔다 (색상값을 한 파일에 모으기 위함). */
+:root {
+  --camera-bg: #111111;                  /* 영상 로딩 전 뷰포트 바탕 */
+  --camera-ink: #ffffff;                 /* 영상 위 글자 (검은 바탕이므로 흰색 허용) */
+  --camera-ink-muted: rgba(255,255,255,0.82);
+  --camera-ink-faint: rgba(255,255,255,0.58);
+  --camera-guide: rgba(255,255,255,0.90); /* 가운데 정사각 가이드 테두리 */
+  --camera-scrim: rgba(0,0,0,0.28);       /* 가이드 바깥 어둡게 */
+  --camera-hit: rgba(21,128,61,0.35);     /* 인식 성공 플래시 (--success 계열) */
+  --scrim: rgba(0,0,0,0.5);               /* 모달 뒤 배경 */
+}

@@ -8,7 +8,7 @@ function StudentLayout({ user, onLogout, children }) {
       <header className="header">
         <span className="header-brand">🛏️ 아리쉼표</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '.82rem', color: 'rgba(255,255,255,.8)' }}>{user.name}</span>
+          <span className="header-name">{user.name}</span>
           <button className="btn-logout" onClick={onLogout}>로그아웃</button>
         </div>
       </header>
@@ -44,7 +44,7 @@ function AdminLayout({ user, onLogout, children }) {
         <NavLink to="/admin" className="header-brand">🛏️ 아리쉼표</NavLink>
         <nav className="header-nav">
           <NavLink to="/admin" end className={({ isActive }) => isActive ? 'active' : ''}>관리자</NavLink>
-          <span style={{ fontSize: '.82rem', color: 'rgba(255,255,255,.8)', marginLeft: 4 }}>{user.name}</span>
+          <span className="header-name" style={{ marginLeft: 4 }}>{user.name}</span>
           <button className="btn-logout" onClick={onLogout}>로그아웃</button>
         </nav>
       </header>
