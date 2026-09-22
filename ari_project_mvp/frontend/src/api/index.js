@@ -5,6 +5,9 @@ export const authApi = {
   register: (data) => client.post('/api/auth/register', data),
   login: (data) => client.post('/api/auth/login', data),
   me: () => client.get('/api/auth/me'),
+  // 성공하면 새 토큰이 함께 오고, 다른 기기의 토큰은 모두 끊긴다
+  changePassword: (data) => client.post('/api/auth/password', data),
+  withdraw: (data) => client.delete('/api/auth/me', { data }),
 }
 
 // ── Verifications ─────────────────────────────────────────────────────────
@@ -53,6 +56,9 @@ export const adminUserApi = {
   list: (params) => client.get('/api/admin/users', { params }),
   update: (id, data) => client.patch(`/api/admin/users/${id}`, data),
   remove: (id) => client.delete(`/api/admin/users/${id}`),
+  // 임시 비밀번호는 이 응답에서 한 번만 온다 — 다시 볼 수 없다
+  issueTempPassword: (id) => client.post(`/api/admin/users/${id}/temp-password`),
+  loginEvents: (id) => client.get(`/api/admin/users/${id}/login-events`),
 }
 
 // ── Seats ─────────────────────────────────────────────────────────────────

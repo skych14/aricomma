@@ -170,6 +170,11 @@ tr:hover td { background: var(--surface-tint); }
 /* 안내 문장 */
 .text-muted { color: var(--ink-muted); font-size: var(--fs-body-sm); }
 .text-center { text-align: center; }
+/* 화면 읽기에만 들리는 글자 — 눈으로는 안 보이지만 읽기 순서에는 남는다 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 .mt-2 { margin-top: 8px; }
 .mt-4 { margin-top: 16px; }
 .flex { display: flex; }
@@ -191,6 +196,28 @@ tr:hover td { background: var(--surface-tint); }
 @media (max-width: 400px) {
   .auth-box { padding-left: var(--space-4); padding-right: var(--space-4); }
 }
+
+/* 개인정보 동의 — 체크박스 한 줄 + 접히는 상세 */
+.privacy-agree { margin-bottom: var(--space-4); }
+.privacy-agree-line {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  font-size: var(--fs-body); color: var(--ink); line-height: 1.4;
+  word-break: keep-all; cursor: pointer;
+}
+/* 터치 영역을 키우면서 글자와 첫 줄을 맞춘다 */
+.privacy-agree-line input {
+  flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: var(--brand-strong);
+}
+.privacy-agree .ui-btn { margin-top: var(--space-1); padding-left: 0; }
+.privacy-detail {
+  margin-top: var(--space-2); padding: var(--space-3);
+  background: var(--surface-page); border-radius: var(--radius-input);
+  font-size: var(--fs-body-sm); color: var(--ink); line-height: 1.6; word-break: keep-all;
+}
+.privacy-detail dt { font-weight: 700; }
+.privacy-detail dd { margin: 0 0 var(--space-2); }
+.privacy-detail dd:last-child { margin-bottom: 0; }
+.privacy-detail-note { color: var(--ink-muted); }
 
 /* ── Status card (대시보드) ─────────────────────────────── */
 .status-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -541,6 +568,19 @@ tr:hover td { background: var(--surface-tint); }
 .checkin-result-icon { color: var(--brand-strong); }
 .checkin-result-title { font-size: var(--fs-title); font-weight: 700; color: var(--ink); }
 
+/* 관리자: 임시 비밀번호 — 읽어서 불러줄 수 있게 크고 띄엄띄엄 */
+.temp-password {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-2);
+  margin: var(--space-3) 0; padding: var(--space-3);
+  background: var(--surface-page); border-radius: var(--radius-input);
+}
+.temp-password-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 22px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--ink); word-break: break-all;
+}
+
 /* 관리자: 좌석 추가 폼 — 한 줄에 여러 칸 */
 .seat-form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: flex-start; }
 .seat-form .ui-card-title { flex-basis: 100%; }
@@ -649,3 +689,5 @@ tr:hover td { background: var(--surface-tint); }
 }
 /* 로그아웃은 한 칸 띄우고 맨 아래 */
 .more-logout { margin-top: var(--space-5); }
+/* 되돌릴 수 없는 항목만 --danger 글자로 구분한다 (아이콘 색은 그대로) */
+.more-withdraw .ui-menu-item-label { color: var(--danger); }

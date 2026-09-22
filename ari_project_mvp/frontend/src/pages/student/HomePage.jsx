@@ -119,6 +119,9 @@ export default function HomePage() {
         <div className="home-center">
           <ProfileRow user={user} statusLine="현재 이용중인 자리 없음" warnings={warnings} />
 
+          {/* 비밀번호 변경·퇴실 같은 완료 안내는 인증 전에도 보여야 한다 */}
+          {flash && <Notice tone="success">{flash}</Notice>}
+
           {rejected ? (
             <Notice
               tone="danger" lg title="인증이 거절되었어요"

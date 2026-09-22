@@ -6,10 +6,11 @@ import {
   Notice, PageTitle, StatusBadge, Tabs, TextField,
 } from '../../components/ui/index.js'
 import {
-  IconFile, IconPrint, IconSearch, IconSeat,
+  IconCopy, IconDone, IconFile, IconHistory, IconPassword, IconPrint,
+  IconSearch, IconSeat,
 } from '../../components/ui/icons.jsx'
 import {
-  PENALTY_LEVELS, errMsg, fmtDate, fmtDatetime, fmtTime,
+  PENALTY_LEVELS, errMsg, fmtDate, fmtDatetime, fmtTime, parseUTC,
   penaltyLevelLabel, statusLabel,
 } from '../../utils/helpers.js'
 
@@ -805,6 +806,103 @@ function PenaltyListModal({ user, onClose, onChanged }) {
   )
 }
 
+/** 잠금이 풀릴 때까지 남은 분 (올림) — 0 이하면 이미 풀린 것 */
+function lockMinutesLeft(lockedUntil) {
+  if (!lockedUntil) return 0
+  const left = parseUTC(lockedUntil).getTime() - Date.now()
+  return left > 0 ? Math.ceil(left / 60000) : 0
+}
+
+/**
+ * 발급된 임시 비밀번호를 보여주는 창.
+ * 값은 서버가 한 번만 내려주므로(DB에는 해시만) 창을 닫으면 다시 볼 수 없다.
+ */
+function TempPasswordModal({ user, password, onClose }) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(password)
+      setCopied(true)
+    } catch {
+      // 클립보드를 못 쓰는 환경(비보안 출처 등) — 글자를 직접 고르게 둔다
+      setCopied(false)
+    }
+  }
+
+  return (
+    <Modal title="임시 비밀번호를 발급했어요" onClose={onClose}>
+      <p className="ui-modal-desc">
+        {user.name}({user.student_id}) 학생의 임시 비밀번호입니다.
+      </p>
+      <div className="temp-password">
+        <code className="temp-password-value">{password}</code>
+        <Button size="sm" variant="secondary" onClick={copy}>
+          {copied
+            ? <><IconDone size={ICON} aria-hidden="true" /> 복사됨</>
+            : <><IconCopy size={ICON} aria-hidden="true" /> 복사</>}
+        </Button>
+      </div>
+      <Notice tone="warning">
+        이 창을 닫으면 다시 볼 수 없어요. 학생에게 직접 전달하세요.
+      </Notice>
+      <div className="ui-modal-actions">
+        <Button onClick={onClose}>닫기</Button>
+      </div>
+    </Modal>
+  )
+}
+
+const LOGIN_EVENT_LABELS = {
+  USER_LOGIN: { label: '성공', tone: 'ok' },
+  LOGIN_FAILED: { label: '실패', tone: 'bad' },
+  LOGIN_LOCKED: { label: '잠김', tone: 'wait' },
+}
+
+/** 최근 로그인 성공·실패·잠금 기록 (GET /api/admin/users/{id}/login-events) */
+function LoginEventsModal({ user, onClose }) {
+  const [rows, setRows] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    adminUserApi.loginEvents(user.id)
+      .then(r => setRows(r.data))
+      .catch(e => { setError(errMsg(e)); setRows([]) })
+  }, [user.id])
+
+  return (
+    <Modal title={`${user.name} 로그인 기록`} onClose={onClose}>
+      {error && <Notice tone="danger">{error}</Notice>}
+      {rows === null ? <LoadingBox /> : rows.length === 0 ? (
+        <EmptyState title="기록이 없습니다." compact />
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>시각</th><th>결과</th><th>IP</th></tr>
+            </thead>
+            <tbody>
+              {rows.map(e => {
+                const kind = LOGIN_EVENT_LABELS[e.action_type] || { label: e.action_type, tone: 'neutral' }
+                return (
+                  <tr key={e.id}>
+                    <td>{fmtDatetime(e.created_at)}</td>
+                    <td><StatusBadge tone={kind.tone} label={kind.label} /></td>
+                    <td className="mono-id">{e.ip_address || '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="ui-modal-actions">
+        <Button variant="secondary" onClick={onClose}>닫기</Button>
+      </div>
+    </Modal>
+  )
+}
+
 function UsersTab() {
   const [users, setUsers] = useState([])
   const [q, setQ] = useState('')
@@ -815,6 +913,10 @@ function UsersTab() {
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [penaltyUser, setPenaltyUser] = useState(null)
+  const [tempTarget, setTempTarget] = useState(null)   // 임시 비밀번호 발급 확인창 대상
+  const [tempIssued, setTempIssued] = useState(null)   // { user, password } — 한 번만 보여준다
+  const [tempBusy, setTempBusy] = useState(false)
+  const [eventsUser, setEventsUser] = useState(null)
   const [resetting, setResetting] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
@@ -848,6 +950,16 @@ function UsersTab() {
       setMsg('누적 횟수를 초기화했습니다'); setError(''); load()
     } catch (e) { setError(errMsg(e)) }
     finally { setResetting(false) }
+  }
+
+  const issueTemp = async () => {
+    setTempBusy(true); setError('')
+    try {
+      const r = await adminUserApi.issueTempPassword(tempTarget.id)
+      setTempIssued({ user: tempTarget, password: r.data.temp_password })
+      setTempTarget(null); setMsg(''); load()
+    } catch (e) { setError(errMsg(e)); setTempTarget(null) }
+    finally { setTempBusy(false) }
   }
 
   const removeUser = async () => {
@@ -890,6 +1002,10 @@ function UsersTab() {
                 <div className="flex gap-2 wrap">
                   {u.role === 'admin' && <StatusBadge tone="brand" label="관리자" />}
                   {u.is_suspended && <StatusBadge tone="bad" label="정지" />}
+                  {lockMinutesLeft(u.locked_until) > 0 && (
+                    <StatusBadge tone="wait" label={`잠김 (${lockMinutesLeft(u.locked_until)}분)`} />
+                  )}
+                  {u.must_change_password && <StatusBadge tone="neutral" label="임시 비밀번호" />}
                   <StatusBadge tone={u.is_verified ? 'ok' : 'wait'}
                     label={u.is_verified ? '인증됨' : '미인증'} />
                 </div>
@@ -915,6 +1031,12 @@ function UsersTab() {
                       onClick={() => patch(u, { is_verified: false }, '인증 해제됨')}>인증 해제</Button>
                   )}
                   <Button size="sm" variant="secondary" onClick={() => setPenaltyUser(u)}>패널티</Button>
+                  <Button size="sm" variant="secondary" onClick={() => setTempTarget(u)}>
+                    <IconPassword size={ICON} aria-hidden="true" /> 임시 비밀번호
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setEventsUser(u)}>
+                    <IconHistory size={ICON} aria-hidden="true" /> 로그인 기록
+                  </Button>
                   <Button size="sm" variant="danger" onClick={() => { setDeleteError(''); setDeleting(u) }}>삭제</Button>
                 </div>
               )}
@@ -953,6 +1075,27 @@ function UsersTab() {
       {penaltyUser && (
         <PenaltyListModal user={penaltyUser} onClose={() => setPenaltyUser(null)}
           onChanged={() => { setMsg('패널티를 취소했습니다'); setError(''); load() }} />
+      )}
+
+      {tempTarget && (
+        <ConfirmDialog
+          title="임시 비밀번호를 발급할까요?"
+          description={`${tempTarget.name}(${tempTarget.student_id}) 학생의 모든 기기가 로그아웃돼요.`}
+          confirmLabel="발급"
+          tone="danger"
+          busy={tempBusy}
+          onConfirm={issueTemp}
+          onCancel={() => setTempTarget(null)}
+        />
+      )}
+
+      {tempIssued && (
+        <TempPasswordModal user={tempIssued.user} password={tempIssued.password}
+          onClose={() => setTempIssued(null)} />
+      )}
+
+      {eventsUser && (
+        <LoginEventsModal user={eventsUser} onClose={() => setEventsUser(null)} />
       )}
     </div>
   )

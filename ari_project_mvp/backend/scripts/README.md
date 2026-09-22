@@ -28,7 +28,20 @@ fly deploy
 curl https://<앱주소>/health
 ```
 
-### 2. DB 초기화
+### 2. 관리자 비밀번호 시크릿 설정
+
+DB를 지우면 재시작 때 seed가 관리자 계정을 새로 만든다. 이때 쓸 비밀번호를
+**초기화 전에** 정해 둔다. 시크릿이 없으면 seed는 관리자를 만들지 않고
+`ADMIN_PASSWORD 시크릿을 설정한 뒤 재시작하세요` 경고만 남긴다.
+
+```bash
+fly secrets set ADMIN_PASSWORD='<10자 이상, 영문+숫자, 공백 없음>'
+```
+
+가입 화면과 같은 규칙을 쓰므로(`utils/password_policy.py`) 규칙에 어긋나면
+seed가 그 값을 거부한다. `fly secrets set` 은 앱을 자동으로 재시작한다.
+
+### 3. DB 초기화
 
 ```bash
 fly ssh console
@@ -59,9 +72,10 @@ fly apps restart <앱이름>
 `fly logs` 에 `관리자 생성: ...`, `자리 생성: ...` 이 찍히면 정상이다.
 seed는 `SEED_TEST_USERS` 가 true일 때만 테스트 학생을 만든다. 운영에서는 false로 둔다.
 
-### 3. 관리자 비밀번호 설정
+### 4. 관리자 비밀번호 변경 (선택)
 
-seed가 만든 관리자 비밀번호는 `ADMIN_PASSWORD` 기본값이므로 **반드시 바꾼다.**
+2번에서 정한 비밀번호를 그대로 쓸 거라면 이 단계는 건너뛴다.
+나중에 바꿀 때는 이 스크립트를 쓴다.
 
 ```bash
 fly ssh console
@@ -72,9 +86,10 @@ python scripts/set_admin_password.py
 새 비밀번호는 가입 화면과 같은 규칙을 따른다 (`utils/password_policy.py`):
 10~64자, 영문과 숫자를 모두 포함, 공백 없음, ASCII 문자만.
 
-### 4. 마무리 확인
+### 5. 마무리 확인
 
 - `ENABLE_DOCS` 가 설정돼 있지 않은지 확인한다 (운영에서 `/docs` 는 404여야 한다).
+  이 값이 true면 `ADMIN_PASSWORD` 없이도 개발용 기본 비밀번호로 관리자가 만들어진다.
 
   ```bash
   fly secrets list           # ENABLE_DOCS 가 없어야 한다
@@ -87,7 +102,7 @@ python scripts/set_admin_password.py
   fly secrets set SECRET_KEY="$(openssl rand -hex 32)"
   ```
 
-  바꾸면 발급된 토큰이 모두 무효가 되므로 **3번보다 먼저** 하는 편이 낫다.
+  바꾸면 발급된 토큰이 모두 무효가 되므로 **2번보다 먼저** 하는 편이 낫다.
 
 - 새 관리자 비밀번호로 로그인되는지, 학생 계정 가입이 되는지 직접 확인한다.
 

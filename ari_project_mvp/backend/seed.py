@@ -3,6 +3,7 @@
 python seed.py 로 실행.
 이미 존재하는 데이터는 건너뜀.
 """
+import os
 import sys
 import uuid
 from datetime import datetime
@@ -14,6 +15,7 @@ from database import SessionLocal, engine
 from models import AuditLog, Reservation, Seat, UsageLog, User, VerificationRequest
 from database import Base
 from utils.auth import hash_password
+from utils.password_policy import password_error
 
 Base.metadata.create_all(bind=engine)
 
@@ -49,24 +51,50 @@ SEATS = [
 ]
 
 
+def admin_password() -> str | None:
+    """관리자 계정에 쓸 비밀번호. 쓸 수 없으면 이유를 찍고 None.
+
+    운영에서 기본 비밀번호가 붙은 관리자 계정이 생기는 일을 막는 것이 목적이다.
+    ADMIN_PASSWORD가 있으면 가입 화면과 같은 규칙으로 검사하고, 없으면
+    로컬 개발(ENABLE_DOCS=true)에서만 개발용 기본값을 쓴다.
+    """
+    given = os.environ.get("ADMIN_PASSWORD")
+    if given:
+        error = password_error(given)
+        if error:
+            print(f"  경고: ADMIN_PASSWORD가 규칙에 어긋납니다 — {error}")
+            return None
+        return given
+    if settings.enable_docs:
+        print("  경고: ADMIN_PASSWORD가 없어 개발용 기본값을 씁니다 (운영에서는 쓰지 마세요)")
+        return settings.admin_password
+    return None
+
+
 def run():
     db = SessionLocal()
     try:
         # 관리자 계정
         if not db.query(User).filter(User.email == settings.admin_email).first():
-            admin = User(
-                id=str(uuid.uuid4()),
-                email=settings.admin_email,
-                hashed_password=hash_password(settings.admin_password),
-                name=settings.admin_name,
-                student_id="ADMIN0000",
-                role="admin",
-                is_verified=True,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            db.add(admin)
-            print(f"  관리자 생성: {settings.admin_email}")
+            password = admin_password()
+            if password is None:
+                print(
+                    "  관리자 생성 건너뜀 — ADMIN_PASSWORD 시크릿을 설정한 뒤 재시작하세요"
+                )
+            else:
+                admin = User(
+                    id=str(uuid.uuid4()),
+                    email=settings.admin_email,
+                    hashed_password=hash_password(password),
+                    name=settings.admin_name,
+                    student_id="ADMIN0000",
+                    role="admin",
+                    is_verified=True,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                db.add(admin)
+                print(f"  관리자 생성: {settings.admin_email}")
         else:
             print(f"  관리자 이미 존재: {settings.admin_email}")
 

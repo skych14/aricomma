@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     enable_docs: bool = False
 
     admin_email: str = "admin@ari.ac.kr"
+    # 개발용 기본값. 운영에서는 ADMIN_PASSWORD 시크릿을 반드시 설정한다 —
+    # 값이 없으면 seed가 관리자를 만들지 않는다 (backend/scripts/README.md 참고).
     admin_password: str = "admin1234"
     admin_name: str = "관리자"
 

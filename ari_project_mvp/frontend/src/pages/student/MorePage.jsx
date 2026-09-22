@@ -4,7 +4,8 @@ import { reservationApi, verificationApi } from '../../api/index.js'
 import Logo from '../../components/Logo.jsx'
 import { Button, MenuItem, StatusBadge } from '../../components/ui/index.js'
 import {
-  IconBack, IconLogout, IconMail, IconSeat, IconSeatMap, IconVerify,
+  IconBack, IconLogout, IconMail, IconPassword, IconSeat, IconSeatMap,
+  IconVerify, IconWithdraw,
 } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { seatMapPath } from '../../utils/rooms.js'
@@ -76,6 +77,15 @@ export default function MorePage() {
 
         <MenuItem as={Link} to="/report" icon={<IconMail size={MENU_ICON} />}>
           민원 신고 내역
+        </MenuItem>
+
+        <MenuItem as={Link} to="/password" icon={<IconPassword size={MENU_ICON} />}>
+          비밀번호 변경
+        </MenuItem>
+
+        <MenuItem as={Link} to="/withdraw" className="more-withdraw"
+          icon={<IconWithdraw size={MENU_ICON} />}>
+          회원 탈퇴
         </MenuItem>
 
         <MenuItem className="more-logout" icon={<IconLogout size={MENU_ICON} />} onClick={handleLogout}>

@@ -67,6 +67,37 @@ textarea.ui-input { min-height: 0; resize: vertical; line-height: 1.5; }
 .ui-field-error { margin-top: var(--space-1); font-size: var(--fs-body-sm); color: var(--danger); }
 .ui-field-hint { margin-top: var(--space-1); font-size: var(--fs-body-sm); color: var(--ink-muted); }
 
+/* ── PasswordField (보기/숨기기 단추) ───────────────────── */
+/* 단추가 글자 위에 겹치지 않도록 입력칸 오른쪽에 자리를 비워 둔다 */
+.ui-password { position: relative; }
+.ui-password .ui-input { padding-right: 48px; }
+.ui-password .ui-input:focus { padding-right: 47px; }
+.ui-password-toggle {
+  position: absolute; right: 0;
+  /* 라벨(글자+여백) 아래가 입력칸 — 그 높이 안에서 가운데 */
+  top: calc(var(--fs-label) * 1.3 + var(--space-1));
+  display: flex; align-items: center; justify-content: center;
+  width: var(--control-height); height: var(--control-height);
+  border: none; background: none; color: var(--ink-muted); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-password-toggle:hover { color: var(--ink); }
+.ui-password-toggle:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: -2px; border-radius: var(--radius-input); }
+/* 라벨이 없는 경우(예: 확인창 안) — 입력칸이 맨 위에서 시작한다 */
+.ui-password--bare .ui-password-toggle { top: 0; }
+
+/* ── PasswordChecklist ──────────────────────────────────── */
+.ui-checklist {
+  list-style: none; margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  display: flex; flex-direction: column; gap: var(--space-1);
+}
+.ui-checklist-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-body-sm); color: var(--ink-muted);
+}
+/* 충족은 색만이 아니라 아이콘 모양(속 찬 원 ↔ 빈 원)으로도 구분된다 */
+.ui-checklist-item.is-met { color: var(--success); }
+
 /* ── Card ───────────────────────────────────────────────── */
 .ui-card {
   background: var(--surface); border-radius: var(--radius-card);

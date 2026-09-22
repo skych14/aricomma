@@ -23,12 +23,17 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
+  /** 토큰·사용자를 한 번에 갈아끼운다 (로그인, 비밀번호 변경 후 재발급). */
+  const setSession = (token, nextUser) => {
+    localStorage.setItem('ari_token', token)
+    localStorage.setItem('ari_user', JSON.stringify(nextUser))
+    setUser(nextUser)
+    return nextUser
+  }
+
   const login = async (email, password) => {
     const r = await authApi.login({ email, password })
-    localStorage.setItem('ari_token', r.data.access_token)
-    localStorage.setItem('ari_user', JSON.stringify(r.data.user))
-    setUser(r.data.user)
-    return r.data.user
+    return setSession(r.data.access_token, r.data.user)
   }
 
   const logout = () => {
@@ -45,7 +50,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, setSession }}>
       {children}
     </AuthContext.Provider>
   )

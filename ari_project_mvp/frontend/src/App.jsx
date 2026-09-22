@@ -11,6 +11,8 @@ import UiKitPage from './pages/admin/UiKitPage.jsx'
 import HomePage from './pages/student/HomePage.jsx'
 import MorePage from './pages/student/MorePage.jsx'
 import MySeatPage from './pages/student/MySeatPage.jsx'
+import PasswordPage from './pages/student/PasswordPage.jsx'
+import WithdrawPage from './pages/student/WithdrawPage.jsx'
 import SeatsPage from './pages/student/SeatsPage.jsx'
 import ReportPage from './pages/student/ReportPage.jsx'
 import VerificationPage from './pages/student/VerificationPage.jsx'
@@ -54,6 +56,13 @@ export default function App() {
           } />
           <Route path="/report" element={
             <ProtectedRoute><Layout><ReportPage /></Layout></ProtectedRoute>
+          } />
+          {/* 임시 비밀번호 상태에서도 열려 있어야 하는 두 곳 (backend/utils/auth.py) */}
+          <Route path="/password" element={
+            <ProtectedRoute><Layout><PasswordPage /></Layout></ProtectedRoute>
+          } />
+          <Route path="/withdraw" element={
+            <ProtectedRoute><Layout><WithdrawPage /></Layout></ProtectedRoute>
           } />
           {/* 자리 고르기는 단계마다 주소를 나눈다(학우실 → 방 → 배치도) — 뒤로 가기가
               단계 되돌리기가 되게. 한 Route로 받아서 단계를 옮겨도 자리 목록을

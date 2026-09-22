@@ -11,7 +11,9 @@ from collections import defaultdict, deque
 from fastapi import Request
 
 WINDOW_SECONDS = 60
-MAX_REQUESTS = 20
+# 학교 와이파이처럼 여러 사람이 한 IP를 나눠 쓰는 경우를 생각해 넉넉히 잡는다.
+# 한 계정을 노린 시도는 이 값이 아니라 utils/login_guard의 10회 잠금이 막는다.
+MAX_REQUESTS = 60
 
 _hits: dict[str, deque] = defaultdict(deque)
 _lock = threading.Lock()
