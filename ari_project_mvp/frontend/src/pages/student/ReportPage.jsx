@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { reportApi, seatApi } from '../../api/index.js'
 import {
+  Button, Card, EmptyState, LoadingBox, Notice, PageTitle, StatusBadge, TextField,
+} from '../../components/ui/index.js'
+import {
   REPORT_CATEGORIES, errMsg, fmtDatetime, fmtTime,
 } from '../../utils/helpers.js'
 
@@ -89,34 +92,26 @@ export default function ReportPage() {
 
   return (
     <div>
-      <h1 className="page-title">신고하기</h1>
+      <PageTitle>신고하기</PageTitle>
 
-      {msg && <div className="alert alert-success">{msg}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {msg && <Notice tone="success">{msg}</Notice>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
-      <form className="card" onSubmit={submit}>
-        <div className="card-title">어디서 있었던 일인가요?</div>
+      <Card as="form" elevated title="어디서 있었던 일인가요?" onSubmit={submit}>
+        <TextField as="select" label="학우실" value={location}
+          onChange={e => { setLocation(e.target.value); setSeatId('') }}>
+          {locations.map(l => <option key={l} value={l}>{l}</option>)}
+        </TextField>
 
-        <div className="form-group">
-          <label className="form-label">학우실</label>
-          <select className="form-input" value={location}
-            onChange={e => { setLocation(e.target.value); setSeatId('') }}>
-            {locations.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
+        <TextField as="select" label="좌석" value={seatId} onChange={e => setSeatId(e.target.value)}>
+          <option value="">좌석을 선택하세요</option>
+          {locationSeats.map(s => (
+            <option key={s.id} value={s.id}>{s.seat_number} ({s.floor}층)</option>
+          ))}
+        </TextField>
 
-        <div className="form-group">
-          <label className="form-label">좌석</label>
-          <select className="form-input" value={seatId} onChange={e => setSeatId(e.target.value)}>
-            <option value="">좌석을 선택하세요</option>
-            {locationSeats.map(s => (
-              <option key={s.id} value={s.id}>{s.seat_number} ({s.floor}층)</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">무슨 일이 있었나요?</label>
+        <div className="ui-field">
+          <span className="ui-field-label">무슨 일이 있었나요?</span>
           <div className="report-categories">
             {REPORT_CATEGORIES.map(c => (
               <button type="button" key={c.key}
@@ -130,58 +125,58 @@ export default function ReportPage() {
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">언제였나요? <span className="text-muted">(최근 24시간)</span></label>
+        <div className="ui-field">
+          <span className="ui-field-label">
+            언제였나요? <span className="ui-field-optional">(최근 24시간)</span>
+          </span>
           <div className="flex gap-2 mb-2">
             {[[0, '오늘'], [-1, '어제']].map(([off, label]) => (
-              <button type="button" key={off}
-                className={`btn btn-sm ${dayOffset === off ? 'btn-primary' : 'btn-ghost'}`}
+              <Button key={off} size="sm"
+                variant={dayOffset === off ? 'primary' : 'secondary'}
                 onClick={() => { setDayOffset(off); setFromTime(''); setToTime('') }}>
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <select className="form-input" value={fromTime} onChange={e => setFromTime(e.target.value)}>
+          <div className="time-range">
+            <TextField as="select" inline value={fromTime} aria-label="시작 시각"
+              onChange={e => setFromTime(e.target.value)}>
               <option value="">시작</option>
               {TIME_SLOTS.map(t => (
                 <option key={t} value={t} disabled={slotDisabled(t)}>{t}</option>
               ))}
-            </select>
-            <span style={{ alignSelf: 'center' }}>~</span>
-            <select className="form-input" value={toTime} onChange={e => setToTime(e.target.value)}>
+            </TextField>
+            <span aria-hidden="true">~</span>
+            <TextField as="select" inline value={toTime} aria-label="종료 시각"
+              onChange={e => setToTime(e.target.value)}>
               <option value="">종료</option>
               {TIME_SLOTS.map(t => (
                 <option key={t} value={t} disabled={slotDisabled(t) || (fromTime && t <= fromTime)}>{t}</option>
               ))}
-            </select>
+            </TextField>
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">메모 <span className="text-muted">(선택)</span></label>
-          <textarea className="form-input" rows={3} maxLength={MEMO_MAX} value={memo}
-            onChange={e => setMemo(e.target.value)}
-            placeholder="상황을 간단히 적어주세요" />
-          <div className="form-hint">{memo.length} / {MEMO_MAX}자</div>
-        </div>
+        <TextField as="textarea" label="메모" labelNote="(선택)" rows={3} maxLength={MEMO_MAX}
+          value={memo} onChange={e => setMemo(e.target.value)}
+          placeholder="상황을 간단히 적어주세요"
+          hint={`${memo.length} / ${MEMO_MAX}자`} />
 
         <div className="report-notice">
           신고 내용은 관리자만 확인합니다. 신고자 정보는 상대방에게 공개되지 않아요.
           사실과 다른 신고가 반복되면 이용이 제한될 수 있습니다.
         </div>
 
-        <button className="btn btn-primary btn-block" disabled={submitting || !valid}>
-          {submitting ? <><span className="spinner" /> 접수 중...</> : '신고하기'}
-        </button>
-      </form>
+        <Button type="submit" block loading={submitting} disabled={!valid}>
+          {submitting ? '접수 중...' : '신고하기'}
+        </Button>
+      </Card>
 
-      <div className="card">
-        <div className="card-title">내 신고 내역</div>
+      <Card title="내 신고 내역">
         {loading ? (
-          <div className="loading-box"><span className="spinner" /></div>
+          <LoadingBox />
         ) : reports.length === 0 ? (
-          <div className="text-muted">신고 내역이 없습니다.</div>
+          <EmptyState title="신고 내역이 없습니다." compact />
         ) : (
           <ul className="record-list">
             {reports.map(r => (
@@ -191,9 +186,7 @@ export default function ReportPage() {
                     <strong>{r.category_label}</strong>{' '}
                     <span className="text-muted">{r.location} {r.seat_number}</span>
                   </div>
-                  <span className={`badge ${r.status === 'pending' ? 'badge-pending' : 'badge-approved'}`}>
-                    {r.status_label}
-                  </span>
+                  <StatusBadge status={r.status} label={r.status_label} />
                 </div>
                 <div className="record-card-meta">
                   {fmtTime(r.occurred_from)}~{fmtTime(r.occurred_to)} · 접수 {fmtDatetime(r.created_at)}
@@ -203,7 +196,7 @@ export default function ReportPage() {
             ))}
           </ul>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

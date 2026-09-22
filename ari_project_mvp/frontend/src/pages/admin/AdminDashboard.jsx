@@ -2,9 +2,18 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminUserApi, logApi, operationApi, reportApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
 import {
+  Button, Card, ConfirmDialog, EmptyState, LoadingBox, Modal,
+  Notice, PageTitle, StatusBadge, Tabs, TextField,
+} from '../../components/ui/index.js'
+import {
+  IconFile, IconPrint, IconSearch, IconSeat,
+} from '../../components/ui/icons.jsx'
+import {
   PENALTY_LEVELS, errMsg, fmtDate, fmtDatetime, fmtTime,
-  penaltyLevelLabel, statusBadgeClass, statusLabel,
+  penaltyLevelLabel, statusLabel,
 } from '../../utils/helpers.js'
+
+const ICON = 16
 
 // ── 운영 모드 카드 ────────────────────────────────────────────────────────
 function OperationModeCard({ op, onChanged }) {
@@ -31,14 +40,9 @@ function OperationModeCard({ op, onChanged }) {
   }
 
   return (
-    <div className="card op-card">
-      <div className="card-title">운영 모드</div>
-      {error && <div className="alert alert-error">{error}</div>}
-
+    <Card elevated title="운영 모드">
       <div className="op-card-now">
-        <span className={`badge ${isExtended ? 'badge-reserved' : 'badge-approved'}`}>
-          {op.mode_label}
-        </span>
+        <StatusBadge tone={isExtended ? 'brand' : 'ok'} label={op.mode_label} />
         <span className="op-card-hours">
           {isExtended
             ? '24시간 개방 · 기본 2시간 (22:00~09:00 체크인은 최대 7시간)'
@@ -49,27 +53,25 @@ function OperationModeCard({ op, onChanged }) {
       <div className="op-card-state">
         {op.is_open_now
           ? <span className="op-card-open">지금 예약 가능</span>
-          : <span className="op-card-closed">지금은 예약 불가 · {fmtTime(op.next_open_at)}부터</span>}
+          : <span className="op-card-closed">지금은 이용 시간 아님 · 다음 열림 {fmtTime(op.next_open_at)}</span>}
       </div>
 
-      {confirming ? (
-        <div className="op-card-confirm">
-          <p>{confirmText}</p>
-          <div className="flex gap-2">
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={apply}>
-              {busy ? <span className="spinner" /> : '전환'}
-            </button>
-            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setConfirming(false)}>
-              취소
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button className="btn btn-outline btn-sm" onClick={() => setConfirming(true)}>
-          {isExtended ? '평상시 7시간 모드로 전환' : '시험기간 24시간 모드로 전환'}
-        </button>
+      <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
+        {isExtended ? '평상시 7시간 모드로 전환' : '시험기간 24시간 모드로 전환'}
+      </Button>
+
+      {confirming && (
+        <ConfirmDialog
+          title="운영 모드를 바꿀까요?"
+          description={confirmText}
+          confirmLabel="전환"
+          error={error}
+          busy={busy}
+          onConfirm={apply}
+          onCancel={() => { setConfirming(false); setError('') }}
+        />
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -79,6 +81,26 @@ const REJECT_PRESETS = [
   '가입한 이름·학번과 제출 화면이 다릅니다',
   '학생증 또는 학적정보 화면이 아닙니다',
 ]
+
+const VERIFICATION_FILTERS = [
+  { key: '', label: '전체' },
+  { key: 'pending', label: statusLabel('pending') },
+  { key: 'approved', label: statusLabel('approved') },
+  { key: 'rejected', label: statusLabel('rejected') },
+]
+
+/** 필터 줄 — 버튼 하나만 켜지는 목록 (탭이 아니라 목록 좁히기) */
+function FilterRow({ items, value, onChange, label }) {
+  return (
+    <div className="filter-row" role="group" aria-label={label}>
+      {items.map(f => (
+        <Button key={f.key} size="sm" aria-pressed={value === f.key}
+          variant={value === f.key ? 'primary' : 'secondary'}
+          onClick={() => onChange(f.key)}>{f.label}</Button>
+      ))}
+    </div>
+  )
+}
 
 function ReviewModal({ record, onClose, onReviewed }) {
   const [note, setNote] = useState('')
@@ -121,53 +143,50 @@ function ReviewModal({ record, onClose, onReviewed }) {
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="인증 검토">
-      <div className="card modal-card">
-        <div className="card-title">인증 검토</div>
-        {error && <div className="alert alert-error">{error}</div>}
+    <Modal title="인증 검토" onClose={busy ? undefined : onClose}>
+      {error && <Notice tone="danger">{error}</Notice>}
 
-        <div className="review-file">
-          {fileError ? (
-            <div className="alert alert-warning" style={{ marginBottom: 0 }}>{fileError}</div>
-          ) : !fileUrl ? (
-            <div className="loading-box"><span className="spinner" /></div>
-          ) : isPdf ? (
-            <a className="btn btn-outline btn-block" href={fileUrl} target="_blank" rel="noreferrer">
-              📄 PDF 열기
-            </a>
-          ) : (
-            <img src={fileUrl} alt="제출한 화면 캡처" />
-          )}
+      <div className="review-file">
+        {fileError ? (
+          <Notice tone="warning" className="mb-0">{fileError}</Notice>
+        ) : !fileUrl ? (
+          <LoadingBox />
+        ) : isPdf ? (
+          <a className="ui-btn ui-btn--secondary ui-btn--block" href={fileUrl} target="_blank" rel="noreferrer">
+            <IconFile size={ICON} aria-hidden="true" /> PDF 열기
+          </a>
+        ) : (
+          <img src={fileUrl} alt="제출한 화면 캡처" />
+        )}
+      </div>
+
+      {/* 눈으로 대조하기 쉽게 가입 정보를 이미지 바로 아래에 크게 */}
+      <div className="review-identity">
+        <div className="review-identity-row"><span>이름</span><strong>{record.user_name}</strong></div>
+        <div className="review-identity-row">
+          <span>학번</span><strong className="mono-id review-identity-sid">{record.user_student_id}</strong>
         </div>
+        <div className="review-identity-row"><span>이메일</span><strong>{record.user_email}</strong></div>
+      </div>
 
-        {/* 눈으로 대조하기 쉽게 가입 정보를 이미지 바로 아래에 크게 */}
-        <div className="review-identity">
-          <div className="review-identity-row"><span>이름</span><strong>{record.user_name}</strong></div>
-          <div className="review-identity-row">
-            <span>학번</span><strong className="mono-id review-identity-sid">{record.user_student_id}</strong>
-          </div>
-          <div className="review-identity-row"><span>이메일</span><strong>{record.user_email}</strong></div>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">거절 사유 (거절 시 필수)</label>
-          <div className="reject-presets">
-            {REJECT_PRESETS.map(p => (
-              <button key={p} type="button" className="btn btn-sm btn-ghost"
-                onClick={() => setNote(p)}>{p}</button>
-            ))}
-          </div>
-          <input className="form-input" value={note} onChange={e => setNote(e.target.value)}
-            placeholder="거절 사유를 입력하세요" />
-        </div>
-
-        <div className="flex gap-2">
-          <button className="btn btn-success" disabled={busy} onClick={() => review('approve')}>승인</button>
-          <button className="btn btn-danger" disabled={busy || !canReject} onClick={() => review('reject')}>거절</button>
-          <button className="btn btn-ghost" disabled={busy} onClick={onClose}>취소</button>
+      <div className="ui-field">
+        <span className="ui-field-label">거절 사유 (거절 시 필수)</span>
+        <div className="reject-presets">
+          {REJECT_PRESETS.map(p => (
+            <Button key={p} size="sm" variant="secondary" alignStart
+              onClick={() => setNote(p)}>{p}</Button>
+          ))}
         </div>
       </div>
-    </div>
+      <TextField value={note} onChange={e => setNote(e.target.value)}
+        aria-label="거절 사유" placeholder="거절 사유를 입력하세요" />
+
+      <div className="ui-modal-actions">
+        <Button loading={busy} onClick={() => review('approve')}>승인</Button>
+        <Button variant="danger" disabled={busy || !canReject} onClick={() => review('reject')}>거절</Button>
+        <Button variant="secondary" disabled={busy} onClick={onClose}>취소</Button>
+      </div>
+    </Modal>
   )
 }
 
@@ -197,18 +216,11 @@ function VerificationsTab({ onPendingCount }) {
 
   return (
     <div>
-      {msg && <div className="alert alert-success">{msg}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
-      <div className="filter-row">
-        {['', 'pending', 'approved', 'rejected'].map(s => (
-          <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setFilter(s)}>
-            {s === '' ? '전체' : statusLabel(s)}
-          </button>
-        ))}
-      </div>
+      {msg && <Notice tone="success">{msg}</Notice>}
+      {error && <Notice tone="danger">{error}</Notice>}
+      <FilterRow items={VERIFICATION_FILTERS} value={filter} onChange={setFilter} label="인증 상태 필터" />
 
-      {loading ? <div className="loading-box"><span className="spinner" /></div> : (
+      {loading ? <LoadingBox /> : (
         <ul className="record-list">
           {records.map(r => (
             <li key={r.id} className="record-card">
@@ -217,20 +229,18 @@ function VerificationsTab({ onPendingCount }) {
                   <strong>{r.user_name}</strong>{' '}
                   <span className="mono-id">{r.user_student_id}</span>
                 </div>
-                <span className={`badge ${statusBadgeClass(r.status)}`}>{statusLabel(r.status)}</span>
+                <StatusBadge status={r.status} />
               </div>
               <div className="record-card-meta">{fmtDatetime(r.created_at)}</div>
               {r.admin_note && <div className="record-card-note">{r.admin_note}</div>}
               <div className="record-card-actions">
-                {r.status === 'pending' ? (
-                  <button className="btn btn-sm btn-outline" onClick={() => setSelected(r)}>검토</button>
-                ) : (
-                  <span className="text-muted" style={{ fontSize: '.8rem' }}>삭제됨</span>
-                )}
+                {r.status === 'pending'
+                  ? <Button size="sm" variant="secondary" onClick={() => setSelected(r)}>검토</Button>
+                  : <span className="record-card-meta">파일 삭제됨</span>}
               </div>
             </li>
           ))}
-          {records.length === 0 && <li className="text-center text-muted" style={{ padding: 20 }}>내역 없음</li>}
+          {records.length === 0 && <li><EmptyState title="내역 없음" compact /></li>}
         </ul>
       )}
 
@@ -242,11 +252,13 @@ function VerificationsTab({ onPendingCount }) {
 }
 
 // ── 탭 2: 좌석 관리 ─────────────────────────────────────────────────────
+const EMPTY_SEAT = { seat_number: '', seat_type: 'bed', room_gender: 'male', location: '', floor: 1, bunk_group: '' }
+
 function SeatsTab() {
   const [seats, setSeats] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '', floor: 1, bunk_group: '' })
-  const [editTarget, setEditTarget] = useState(null)
+  const [form, setForm] = useState(EMPTY_SEAT)
+  const [deleting, setDeleting] = useState(null)   // 삭제 확인창 대상 좌석
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
@@ -264,14 +276,15 @@ function SeatsTab() {
     try {
       await seatApi.create(form)
       setMsg('좌석이 추가되었습니다')
-      setForm({ seat_number: '', seat_type: 'bed', room_gender: 'male', location: '', floor: 1, bunk_group: '' })
+      setForm(EMPTY_SEAT)
       load()
     } catch (e) { setError(errMsg(e)) }
   }
 
-  const handleDelete = async (id, num) => {
-    if (!confirm(`${num} 좌석을 삭제하시겠습니까?`)) return
-    try { await seatApi.delete(id); load() }
+  const handleDelete = async () => {
+    const seat = deleting
+    setDeleting(null)
+    try { await seatApi.delete(seat.id); load() }
     catch (e) { setError(errMsg(e)) }
   }
 
@@ -282,34 +295,36 @@ function SeatsTab() {
 
   return (
     <div>
-      {msg && <div className="alert alert-success">{msg}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {msg && <Notice tone="success">{msg}</Notice>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
-      <div className="card">
-        <div className="card-title">좌석 추가</div>
-        <form onSubmit={handleCreate} className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-          <input className="form-input" style={{ width: 100 }} placeholder="번호 (A1-1)" value={form.seat_number}
-            onChange={e => setForm({ ...form, seat_number: e.target.value })} required />
-          <span className="form-input" style={{ width: 100, display: 'inline-flex', alignItems: 'center', background: 'var(--surface)', cursor: 'default' }}>🛏️ 침대</span>
-          <select className="form-input" style={{ width: 120 }} value={form.room_gender}
-            onChange={e => setForm({ ...form, room_gender: e.target.value })}>
-            <option value="male">🚹 남학우실</option>
-            <option value="female">🚺 여학우실</option>
-          </select>
-          <input className="form-input" style={{ flex: 1, minWidth: 140 }} placeholder="방 (남학우실 일반방)" value={form.location}
-            onChange={e => setForm({ ...form, location: e.target.value })} required />
-          <select className="form-input" style={{ width: 90 }} value={form.floor}
-            onChange={e => setForm({ ...form, floor: Number(e.target.value) })}>
-            <option value={1}>1층</option>
-            <option value={2}>2층</option>
-          </select>
-          <input className="form-input" style={{ width: 100 }} placeholder="침대조 (A1)" value={form.bunk_group}
-            onChange={e => setForm({ ...form, bunk_group: e.target.value })} required />
-          <button className="btn btn-primary">추가</button>
-        </form>
-      </div>
+      <Card as="form" title="좌석 추가" className="seat-form" onSubmit={handleCreate}>
+        <TextField inline className="seat-form-num" aria-label="좌석 번호"
+          placeholder="번호 (A1-1)" value={form.seat_number}
+          onChange={e => setForm({ ...form, seat_number: e.target.value })} required />
+        <span className="seat-form-type"><IconSeat size={ICON} aria-hidden="true" /> 침대</span>
+        <TextField as="select" inline className="seat-form-gender" aria-label="학우실"
+          value={form.room_gender}
+          onChange={e => setForm({ ...form, room_gender: e.target.value })}>
+          <option value="male">남학우실</option>
+          <option value="female">여학우실</option>
+        </TextField>
+        <TextField inline className="seat-form-location" aria-label="방"
+          placeholder="방 (남학우실 일반방)" value={form.location}
+          onChange={e => setForm({ ...form, location: e.target.value })} required />
+        <TextField as="select" inline className="seat-form-floor" aria-label="층"
+          value={form.floor}
+          onChange={e => setForm({ ...form, floor: Number(e.target.value) })}>
+          <option value={1}>1층</option>
+          <option value={2}>2층</option>
+        </TextField>
+        <TextField inline className="seat-form-bunk" aria-label="침대조"
+          placeholder="침대조 (A1)" value={form.bunk_group}
+          onChange={e => setForm({ ...form, bunk_group: e.target.value })} required />
+        <Button type="submit">추가</Button>
+      </Card>
 
-      {loading ? <div className="loading-box"><span className="spinner" /></div> : (
+      {loading ? <LoadingBox /> : (
         <div className="table-wrap">
           <table>
             <thead>
@@ -319,25 +334,23 @@ function SeatsTab() {
               {seats.map(s => (
                 <tr key={s.id}>
                   <td><strong>{s.seat_number}</strong></td>
-                  <td>🛏️ 침대</td>
+                  <td className="cell-icon"><IconSeat size={ICON} aria-hidden="true" /> 침대</td>
                   <td>
-                    <span className={`badge ${s.room_gender === 'male' ? 'badge-male' : 'badge-female'}`}>
-                      {s.room_gender === 'male' ? '🚹 남학우실' : '🚺 여학우실'}
-                    </span>
+                    <StatusBadge tone={s.room_gender === 'male' ? 'brand' : 'neutral'}
+                      label={s.room_gender === 'male' ? '남학우실' : '여학우실'} />
                   </td>
                   <td>{s.location}</td>
                   <td>{s.floor}층</td>
                   <td>{s.bunk_group}</td>
-                  <td><span className={`badge badge-${s.current_status}`}>{statusLabel(s.current_status)}</span></td>
+                  <td><StatusBadge status={s.current_status} /></td>
                   <td>
-                    <button className={`btn btn-sm ${s.is_active ? 'btn-success' : 'btn-ghost'}`}
+                    <Button size="sm" variant={s.is_active ? 'primary' : 'secondary'}
                       onClick={() => toggleActive(s)}>
                       {s.is_active ? '활성' : '비활성'}
-                    </button>
+                    </Button>
                   </td>
                   <td>
-                    <button className="btn btn-sm btn-danger"
-                      onClick={() => handleDelete(s.id, s.seat_number)}>삭제</button>
+                    <Button size="sm" variant="danger" onClick={() => setDeleting(s)}>삭제</Button>
                   </td>
                 </tr>
               ))}
@@ -345,15 +358,32 @@ function SeatsTab() {
           </table>
         </div>
       )}
-      <div className="alert alert-info" style={{ marginTop: 12, fontSize: '.82rem' }}>
-        <strong>QR 스티커 안내:</strong> QR 스티커는 상단의 🖨️ QR 인쇄 화면에서 인쇄하세요.
+
+      <Notice tone="info" title="QR 스티커 안내">
+        QR 스티커는 상단의 QR 인쇄 화면에서 인쇄하세요.
         학생은 예약 후 현장에서 이 QR을 카메라로 스캔하여 체크인합니다.
-      </div>
+      </Notice>
+
+      {deleting && (
+        <ConfirmDialog
+          title="좌석을 삭제할까요?"
+          description={`${deleting.seat_number} 좌석을 삭제합니다. 되돌릴 수 없습니다.`}
+          confirmLabel="삭제"
+          tone="danger"
+          onConfirm={handleDelete}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
     </div>
   )
 }
 
 // ── 탭 3: 예약/이용 로그 ─────────────────────────────────────────────────
+const RESERVATION_SUBTABS = [
+  { key: 'reservations', label: '예약 목록' },
+  { key: 'usage', label: '이용 로그' },
+]
+
 function ReservationsTab() {
   const [reservations, setReservations] = useState([])
   const [logs, setLogs] = useState([])
@@ -372,15 +402,12 @@ function ReservationsTab() {
     .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="loading-box"><span className="spinner" /></div>
+  if (loading) return <LoadingBox />
 
   return (
     <div>
-      {error && <div className="alert alert-error">{error}</div>}
-      <div className="tabs">
-        <button className={`tab ${tab2 === 'reservations' ? 'active' : ''}`} onClick={() => setTab2('reservations')}>예약 목록</button>
-        <button className={`tab ${tab2 === 'usage' ? 'active' : ''}`} onClick={() => setTab2('usage')}>이용 로그</button>
-      </div>
+      {error && <Notice tone="danger">{error}</Notice>}
+      <Tabs items={RESERVATION_SUBTABS} value={tab2} onChange={setTab2} label="로그 종류" />
       {tab2 === 'reservations' ? (
         <div className="table-wrap">
           <table>
@@ -394,13 +421,15 @@ function ReservationsTab() {
                   <td>{r.user_student_id || '—'}</td>
                   <td>{r.seat_number || '—'}</td>
                   <td>{fmtDatetime(r.reserved_at)}</td>
-                  <td><span className={`badge ${statusBadgeClass(r.status)}`}>{statusLabel(r.status)}</span></td>
+                  <td><StatusBadge status={r.status} /></td>
                   <td>{fmtDatetime(r.checked_in_at)}</td>
                   <td>{r.usage_ends_at ? fmtTime(r.usage_ends_at) : '—'}</td>
                   <td>{fmtDatetime(r.checked_out_at)}</td>
                 </tr>
               ))}
-              {reservations.length === 0 && <tr><td colSpan={8} className="text-center text-muted">내역 없음</td></tr>}
+              {reservations.length === 0 && (
+                <tr><td colSpan={8}><EmptyState title="내역 없음" compact /></td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -416,11 +445,13 @@ function ReservationsTab() {
                   <td>{fmtDatetime(l.performed_at)}</td>
                   <td>{l.user_name || '—'}</td>
                   <td>{l.seat_number || '—'}</td>
-                  <td><span className={`badge ${statusBadgeClass(l.action)}`}>{statusLabel(l.action)}</span></td>
+                  <td><StatusBadge status={l.action} /></td>
                   <td className="text-muted">{l.note || '—'}</td>
                 </tr>
               ))}
-              {logs.length === 0 && <tr><td colSpan={5} className="text-center text-muted">내역 없음</td></tr>}
+              {logs.length === 0 && (
+                <tr><td colSpan={5}><EmptyState title="내역 없음" compact /></td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -444,8 +475,8 @@ function AuditTab() {
 
   return (
     <div>
-      {error && <div className="alert alert-error">{error}</div>}
-      {loading ? <div className="loading-box"><span className="spinner" /></div> : (
+      {error && <Notice tone="danger">{error}</Notice>}
+      {loading ? <LoadingBox /> : (
         <div className="table-wrap">
           <table>
             <thead>
@@ -456,13 +487,15 @@ function AuditTab() {
                 <tr key={l.id}>
                   <td>{fmtDatetime(l.created_at)}</td>
                   <td>{l.actor_name || '시스템'}</td>
-                  <td><code style={{ fontSize: '.78rem' }}>{l.action_type}</code></td>
+                  <td><code className="cell-code">{l.action_type}</code></td>
                   <td>{l.target_type || '—'}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '.75rem' }}>{l.target_id ? l.target_id.slice(0, 8) + '…' : '—'}</td>
+                  <td className="mono-id cell-id">{l.target_id ? l.target_id.slice(0, 8) + '…' : '—'}</td>
                   <td className="text-muted">{l.ip_address || '—'}</td>
                 </tr>
               ))}
-              {logs.length === 0 && <tr><td colSpan={6} className="text-center text-muted">내역 없음</td></tr>}
+              {logs.length === 0 && (
+                <tr><td colSpan={6}><EmptyState title="내역 없음" compact /></td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -534,120 +567,105 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
   const canReject = note.trim().length > 0
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="신고 상세">
-      <div className="card modal-card">
-        <div className="card-title">신고 상세</div>
-        {error && <div className="alert alert-error">{error}</div>}
+    <Modal title="신고 상세" onClose={busy ? undefined : onClose}>
+      {error && <Notice tone="danger">{error}</Notice>}
 
-        <div className="report-detail">
-          <div className="report-detail-row"><span>유형</span><strong>{report.category_label}</strong></div>
-          <div className="report-detail-row">
-            <span>좌석</span><strong>{report.location} {report.seat_number}</strong>
-          </div>
-          <div className="report-detail-row">
-            <span>시간대</span><strong>{fmtTime(report.occurred_from)}~{fmtTime(report.occurred_to)}</strong>
-          </div>
-          <div className="report-detail-row">
-            <span>신고자</span>
-            <strong>{report.reporter_name} <span className="mono-id">{report.reporter_student_id}</span></strong>
-          </div>
+      <div className="report-detail">
+        <div className="report-detail-row"><span>유형</span><strong>{report.category_label}</strong></div>
+        <div className="report-detail-row">
+          <span>좌석</span><strong>{report.location} {report.seat_number}</strong>
         </div>
-        {report.memo && <div className="report-detail-memo">{report.memo}</div>}
-
-        <div className="card-title" style={{ marginTop: 16 }}>그 시간대 이용자</div>
-        {candidates === null ? (
-          <div className="loading-box"><span className="spinner" /></div>
-        ) : candidates.length === 0 ? (
-          <div className="alert alert-warning">
-            그 시간대에 이 좌석을 이용한 기록이 없습니다. 대상 확인 불가로 종결할 수 있어요.
-          </div>
-        ) : (
-          <ul className="candidate-list">
-            {candidates.map(c => (
-              <li key={c.reservation_id}>
-                <button type="button"
-                  className={`candidate${selected === c.user_id ? ' active' : ''}`}
-                  aria-pressed={selected === c.user_id}
-                  disabled={c.is_admin}
-                  onClick={() => pick(c)}>
-                  <div className="candidate-head">
-                    <strong>{c.name} <span className="mono-id">{c.student_id}</span></strong>
-                    <span className={`badge ${c.overlapped ? 'badge-pending' : 'badge-reserved'}`}>
-                      {c.overlapped ? '시간대 겹침' : '직전 이용'}
-                    </span>
-                  </div>
-                  <div className="candidate-meta">
-                    {fmtTime(c.checked_in_at)}~{c.checked_out_at ? fmtTime(c.checked_out_at) : '이용 중'}
-                    {' · '}
-                    {c.checkout_kind === 'auto' ? '자동 퇴실'
-                      : c.checkout_kind === 'self' ? '본인 퇴실' : '퇴실 기록 없음'}
-                  </div>
-                  <div className="candidate-meta">
-                    누적 {c.penalty_count}회 · 권장 {penaltyLevelLabel(c.recommended_level)}
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {selected && (
-          <div className="form-group" style={{ marginTop: 12 }}>
-            <label className="form-label">패널티 단계</label>
-            <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-              {PENALTY_LEVELS.map(l => (
-                <button type="button" key={l.key}
-                  className={`btn btn-sm ${level === l.key ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => setLevel(l.key)}>{l.label}</button>
-              ))}
-            </div>
-            {isTerm && (
-              <div style={{ marginTop: 8 }}>
-                <label className="form-label">해제 예정일</label>
-                <input className="form-input" type="date" value={endsAt}
-                  min={dateInputValue(1)} onChange={e => setEndsAt(e.target.value)} />
-              </div>
-            )}
-            {level === 'suspend_week' && (
-              <div className="form-hint">1주 정지의 해제일은 부과 시각 기준으로 서버가 계산합니다.</div>
-            )}
-          </div>
-        )}
-
-        <div className="form-group">
-          <label className="form-label">관리자 메모 <span className="text-muted">(반려 시 필수)</span></label>
-          <input className="form-input" value={note} onChange={e => setNote(e.target.value)}
-            placeholder="처리 사유" />
+        <div className="report-detail-row">
+          <span>시간대</span><strong>{fmtTime(report.occurred_from)}~{fmtTime(report.occurred_to)}</strong>
         </div>
-
-        {confirming ? (
-          <div className="op-card-confirm">
-            <p>
-              {target?.name}({target?.student_id})에게 {penaltyLevelLabel(level)}를 부과합니다.
-              진행 중인 예약은 취소됩니다. 진행할까요?
-            </p>
-            <div className="flex gap-2">
-              <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => submit('penalize')}>
-                {busy ? <span className="spinner" /> : '부과'}
-              </button>
-              <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setConfirming(false)}>
-                취소
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-            <button className="btn btn-danger btn-sm" disabled={!canPenalize || busy}
-              onClick={() => setConfirming(true)}>패널티 부과</button>
-            <button className="btn btn-ghost btn-sm" disabled={busy}
-              onClick={() => submit('no_target')}>대상 확인 불가로 종결</button>
-            <button className="btn btn-ghost btn-sm" disabled={!canReject || busy}
-              onClick={() => submit('reject')}>반려</button>
-            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={onClose}>닫기</button>
-          </div>
-        )}
+        <div className="report-detail-row">
+          <span>신고자</span>
+          <strong>{report.reporter_name} <span className="mono-id">{report.reporter_student_id}</span></strong>
+        </div>
       </div>
-    </div>
+      {report.memo && <div className="report-detail-memo">{report.memo}</div>}
+
+      <h3 className="section-title section-title--spaced">그 시간대 이용자</h3>
+      {candidates === null ? (
+        <LoadingBox />
+      ) : candidates.length === 0 ? (
+        <Notice tone="warning">
+          그 시간대에 이 좌석을 이용한 기록이 없습니다. 대상 확인 불가로 종결할 수 있어요.
+        </Notice>
+      ) : (
+        <ul className="candidate-list">
+          {candidates.map(c => (
+            <li key={c.reservation_id}>
+              <button type="button"
+                className={`candidate${selected === c.user_id ? ' active' : ''}`}
+                aria-pressed={selected === c.user_id}
+                disabled={c.is_admin}
+                onClick={() => pick(c)}>
+                <div className="candidate-head">
+                  <strong>{c.name} <span className="mono-id">{c.student_id}</span></strong>
+                  <StatusBadge tone={c.overlapped ? 'wait' : 'neutral'}
+                    label={c.overlapped ? '시간대 겹침' : '직전 이용'} />
+                </div>
+                <div className="candidate-meta">
+                  {fmtTime(c.checked_in_at)}~{c.checked_out_at ? fmtTime(c.checked_out_at) : '이용 중'}
+                  {' · '}
+                  {c.checkout_kind === 'auto' ? '자동 퇴실'
+                    : c.checkout_kind === 'self' ? '본인 퇴실' : '퇴실 기록 없음'}
+                </div>
+                <div className="candidate-meta">
+                  누적 {c.penalty_count}회 · 권장 {penaltyLevelLabel(c.recommended_level)}
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {selected && (
+        <div className="ui-field ui-field--spaced">
+          <span className="ui-field-label">패널티 단계</span>
+          <div className="filter-row">
+            {PENALTY_LEVELS.map(l => (
+              <Button key={l.key} size="sm" aria-pressed={level === l.key}
+                variant={level === l.key ? 'primary' : 'secondary'}
+                onClick={() => setLevel(l.key)}>{l.label}</Button>
+            ))}
+          </div>
+          {isTerm && (
+            <TextField label="해제 예정일" type="date" value={endsAt}
+              min={dateInputValue(1)} onChange={e => setEndsAt(e.target.value)} />
+          )}
+          {level === 'suspend_week' && (
+            <div className="ui-field-hint">1주 정지의 해제일은 부과 시각 기준으로 서버가 계산합니다.</div>
+          )}
+        </div>
+      )}
+
+      <TextField label="관리자 메모" labelNote="(반려 시 필수)" value={note}
+        onChange={e => setNote(e.target.value)} placeholder="처리 사유" />
+
+      <div className="ui-modal-actions">
+        <Button variant="danger" size="sm" disabled={!canPenalize || busy}
+          onClick={() => setConfirming(true)}>패널티 부과</Button>
+        <Button variant="secondary" size="sm" disabled={busy}
+          onClick={() => submit('no_target')}>대상 확인 불가로 종결</Button>
+        <Button variant="secondary" size="sm" disabled={!canReject || busy}
+          onClick={() => submit('reject')}>반려</Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={onClose}>닫기</Button>
+      </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title="패널티를 부과할까요?"
+          description={`${target?.name}(${target?.student_id})에게 ${penaltyLevelLabel(level)}를 부과합니다. 진행 중인 예약은 취소됩니다.`}
+          confirmLabel="부과"
+          tone="danger"
+          busy={busy}
+          onConfirm={() => submit('penalize')}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+    </Modal>
   )
 }
 
@@ -677,16 +695,11 @@ function ReportsTab({ onPendingCount }) {
 
   return (
     <div>
-      {msg && <div className="alert alert-success">{msg}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
-      <div className="filter-row">
-        {REPORT_FILTERS.map(f => (
-          <button key={f.key} className={`btn btn-sm ${filter === f.key ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setFilter(f.key)}>{f.label}</button>
-        ))}
-      </div>
+      {msg && <Notice tone="success">{msg}</Notice>}
+      {error && <Notice tone="danger">{error}</Notice>}
+      <FilterRow items={REPORT_FILTERS} value={filter} onChange={setFilter} label="신고 상태 필터" />
 
-      {loading ? <div className="loading-box"><span className="spinner" /></div> : (
+      {loading ? <LoadingBox /> : (
         <ul className="record-list">
           {reports.map(r => (
             <li key={r.id} className="record-card">
@@ -695,9 +708,7 @@ function ReportsTab({ onPendingCount }) {
                   <strong>{r.category_label}</strong>{' '}
                   <span className="text-muted">{r.location} {r.seat_number}</span>
                 </div>
-                <span className={`badge ${r.status === 'pending' ? 'badge-pending' : 'badge-approved'}`}>
-                  {r.status_label}
-                </span>
+                <StatusBadge status={r.status} label={r.status_label} />
               </div>
               <div className="record-card-meta">
                 {fmtTime(r.occurred_from)}~{fmtTime(r.occurred_to)} · 접수 {fmtDatetime(r.created_at)}
@@ -710,12 +721,12 @@ function ReportsTab({ onPendingCount }) {
               {r.admin_note && <div className="record-card-note text-muted">처리 메모: {r.admin_note}</div>}
               {r.status === 'pending' && (
                 <div className="record-card-actions">
-                  <button className="btn btn-sm btn-outline" onClick={() => setSelected(r)}>처리</button>
+                  <Button size="sm" variant="secondary" onClick={() => setSelected(r)}>처리</Button>
                 </div>
               )}
             </li>
           ))}
-          {reports.length === 0 && <li className="text-center text-muted" style={{ padding: 20 }}>내역 없음</li>}
+          {reports.length === 0 && <li><EmptyState title="내역 없음" compact /></li>}
         </ul>
       )}
 
@@ -733,43 +744,6 @@ const USER_FILTERS = [
   { key: 'unverified', label: '미인증' },
   { key: 'suspended', label: '정지' },
 ]
-
-function DeleteUserModal({ user, onClose, onDeleted }) {
-  const [typed, setTyped] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const matched = typed.trim() === user.student_id
-
-  const remove = async () => {
-    if (!matched) return
-    setBusy(true); setError('')
-    try {
-      await adminUserApi.remove(user.id)
-      onDeleted(`${user.name}(${user.student_id}) 계정을 삭제했습니다`)
-    } catch (e) { setError(errMsg(e)); setBusy(false) }
-  }
-
-  return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="계정 삭제 확인">
-      <div className="card modal-card">
-        <div className="card-title">계정 삭제</div>
-        {error && <div className="alert alert-error">{error}</div>}
-        <p style={{ fontSize: '.9rem', marginBottom: 12 }}>
-          이 계정과 관련 기록이 모두 삭제됩니다. 계속하려면 학번{' '}
-          <strong className="mono-id">{user.student_id}</strong> 를 입력하세요
-        </p>
-        <input className="form-input" value={typed} onChange={e => setTyped(e.target.value)}
-          placeholder="학번 입력" autoFocus />
-        <div className="flex gap-2 mt-4">
-          <button className="btn btn-danger" disabled={!matched || busy} onClick={remove}>
-            {busy ? <span className="spinner" /> : '삭제'}
-          </button>
-          <button className="btn btn-ghost" disabled={busy} onClick={onClose}>취소</button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function PenaltyListModal({ user, onClose, onChanged }) {
   const [rows, setRows] = useState(null)
@@ -791,42 +765,43 @@ function PenaltyListModal({ user, onClose, onChanged }) {
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="패널티 내역">
-      <div className="card modal-card">
-        <div className="card-title">
-          패널티 내역 — {user.name} <span className="mono-id">{user.student_id}</span>
-        </div>
-        {error && <div className="alert alert-error">{error}</div>}
-        {rows === null ? <div className="loading-box"><span className="spinner" /></div>
-          : rows.length === 0 ? <div className="text-muted">패널티 내역이 없습니다.</div> : (
-          <ul className="record-list">
-            {rows.map(p => (
-              <li key={p.id} className={`record-card${p.revoked_at ? ' is-suspended' : ''}`}>
-                <div className="record-card-head">
-                  <strong>{p.level_label}</strong>
-                  {p.revoked_at
-                    ? <span className="badge badge-rejected">취소됨</span>
-                    : <span className="badge badge-pending">유효</span>}
+    <Modal
+      onClose={busy ? undefined : onClose}
+      label="패널티 내역"
+      title={<>패널티 내역 — {user.name} <span className="mono-id">{user.student_id}</span></>}
+    >
+      {error && <Notice tone="danger">{error}</Notice>}
+      {rows === null ? <LoadingBox />
+        : rows.length === 0 ? <EmptyState title="패널티 내역이 없습니다." compact /> : (
+        <ul className="record-list">
+          {rows.map(p => (
+            <li key={p.id} className={`record-card${p.revoked_at ? ' is-suspended' : ''}`}>
+              <div className="record-card-head">
+                <strong>{p.level_label}</strong>
+                {p.revoked_at
+                  ? <StatusBadge tone="bad" label="취소됨" />
+                  : <StatusBadge tone="wait" label="유효" />}
+              </div>
+              <div className="record-card-meta">
+                {fmtDate(p.starts_at)}
+                {p.ends_at && <> ~ {fmtDatetime(p.ends_at)}</>}
+                {p.acknowledged_at && ' · 학생 확인함'}
+              </div>
+              <div className="record-card-note">{p.reason}</div>
+              {!p.revoked_at && (
+                <div className="record-card-actions">
+                  <Button size="sm" variant="secondary" disabled={busy}
+                    onClick={() => revoke(p.id)}>패널티 취소</Button>
                 </div>
-                <div className="record-card-meta">
-                  {fmtDate(p.starts_at)}
-                  {p.ends_at && <> ~ {fmtDatetime(p.ends_at)}</>}
-                  {p.acknowledged_at && ' · 학생 확인함'}
-                </div>
-                <div className="record-card-note">{p.reason}</div>
-                {!p.revoked_at && (
-                  <div className="record-card-actions">
-                    <button className="btn btn-sm btn-ghost" disabled={busy}
-                      onClick={() => revoke(p.id)}>패널티 취소</button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        <button className="btn btn-ghost btn-sm mt-2" onClick={onClose}>닫기</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="ui-modal-actions">
+        <Button variant="ghost" size="sm" onClick={onClose}>닫기</Button>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -837,6 +812,8 @@ function UsersTab() {
   const [filter, setFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [penaltyUser, setPenaltyUser] = useState(null)
   const [resetting, setResetting] = useState(false)
   const [msg, setMsg] = useState('')
@@ -865,42 +842,43 @@ function UsersTab() {
     } catch (e) { setError(errMsg(e)) }
   }
 
+  const resetCounter = async () => {
+    try {
+      await reportApi.adminResetCounter()
+      setMsg('누적 횟수를 초기화했습니다'); setError(''); load()
+    } catch (e) { setError(errMsg(e)) }
+    finally { setResetting(false) }
+  }
+
+  const removeUser = async () => {
+    setDeleteBusy(true); setDeleteError('')
+    try {
+      await adminUserApi.remove(deleting.id)
+      setMsg(`${deleting.name}(${deleting.student_id}) 계정을 삭제했습니다`)
+      setError(''); setDeleting(null); load()
+    } catch (e) { setDeleteError(errMsg(e)) }
+    finally { setDeleteBusy(false) }
+  }
+
   return (
     <div>
-      {msg && <div className="alert alert-success">{msg}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {msg && <Notice tone="success">{msg}</Notice>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
-      {resetting ? (
-        <div className="op-card-confirm" style={{ marginBottom: 12 }}>
-          <p>모든 학생의 누적 횟수가 0이 됩니다. 기록은 남습니다.</p>
-          <div className="flex gap-2">
-            <button className="btn btn-danger btn-sm" onClick={async () => {
-              try {
-                await reportApi.adminResetCounter()
-                setMsg('누적 횟수를 초기화했습니다'); setError(''); setResetting(false); load()
-              } catch (e) { setError(errMsg(e)); setResetting(false) }
-            }}>초기화</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setResetting(false)}>취소</button>
-          </div>
-        </div>
-      ) : (
-        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}
-          onClick={() => setResetting(true)}>누적 초기화</button>
-      )}
-
-      <form className="filter-row" onSubmit={e => { e.preventDefault(); setSearch(q.trim()) }}>
-        <input className="form-input" style={{ flex: 1, minWidth: 140 }} value={q}
-          onChange={e => setQ(e.target.value)} placeholder="이름 · 학번 · 이메일 검색" />
-        <button className="btn btn-sm btn-primary">검색</button>
-      </form>
       <div className="filter-row">
-        {USER_FILTERS.map(f => (
-          <button key={f.key} className={`btn btn-sm ${filter === f.key ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setFilter(f.key)}>{f.label}</button>
-        ))}
+        <Button variant="secondary" size="sm" onClick={() => setResetting(true)}>누적 초기화</Button>
       </div>
 
-      {loading ? <div className="loading-box"><span className="spinner" /></div> : (
+      <form className="filter-row" onSubmit={e => { e.preventDefault(); setSearch(q.trim()) }}>
+        <TextField inline className="user-search" value={q} aria-label="사용자 검색"
+          onChange={e => setQ(e.target.value)} placeholder="이름 · 학번 · 이메일 검색" />
+        <Button type="submit" size="sm">
+          <IconSearch size={ICON} aria-hidden="true" /> 검색
+        </Button>
+      </form>
+      <FilterRow items={USER_FILTERS} value={filter} onChange={setFilter} label="사용자 상태 필터" />
+
+      {loading ? <LoadingBox /> : (
         <ul className="record-list">
           {users.map(u => (
             <li key={u.id} className={`record-card${u.is_suspended ? ' is-suspended' : ''}`}>
@@ -909,12 +887,11 @@ function UsersTab() {
                   <strong>{u.name}</strong>{' '}
                   <span className="mono-id">{u.student_id}</span>
                 </div>
-                <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-                  {u.role === 'admin' && <span className="badge badge-male">관리자</span>}
-                  {u.is_suspended && <span className="badge badge-rejected">정지</span>}
-                  <span className={`badge ${u.is_verified ? 'badge-approved' : 'badge-pending'}`}>
-                    {u.is_verified ? '인증됨' : '미인증'}
-                  </span>
+                <div className="flex gap-2 wrap">
+                  {u.role === 'admin' && <StatusBadge tone="brand" label="관리자" />}
+                  {u.is_suspended && <StatusBadge tone="bad" label="정지" />}
+                  <StatusBadge tone={u.is_verified ? 'ok' : 'wait'}
+                    label={u.is_verified ? '인증됨' : '미인증'} />
                 </div>
               </div>
               <div className="record-card-meta">
@@ -927,29 +904,50 @@ function UsersTab() {
               {u.role !== 'admin' && (
                 <div className="record-card-actions">
                   {u.is_suspended ? (
-                    <button className="btn btn-sm btn-ghost"
-                      onClick={() => patch(u, { is_suspended: false }, '정지 해제됨')}>정지 해제</button>
+                    <Button size="sm" variant="secondary"
+                      onClick={() => patch(u, { is_suspended: false }, '정지 해제됨')}>정지 해제</Button>
                   ) : (
-                    <button className="btn btn-sm btn-ghost"
-                      onClick={() => patch(u, { is_suspended: true }, '정지됨')}>정지</button>
+                    <Button size="sm" variant="secondary"
+                      onClick={() => patch(u, { is_suspended: true }, '정지됨')}>정지</Button>
                   )}
                   {u.is_verified && (
-                    <button className="btn btn-sm btn-ghost"
-                      onClick={() => patch(u, { is_verified: false }, '인증 해제됨')}>인증 해제</button>
+                    <Button size="sm" variant="secondary"
+                      onClick={() => patch(u, { is_verified: false }, '인증 해제됨')}>인증 해제</Button>
                   )}
-                  <button className="btn btn-sm btn-ghost" onClick={() => setPenaltyUser(u)}>패널티</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => setDeleting(u)}>삭제</button>
+                  <Button size="sm" variant="secondary" onClick={() => setPenaltyUser(u)}>패널티</Button>
+                  <Button size="sm" variant="danger" onClick={() => { setDeleteError(''); setDeleting(u) }}>삭제</Button>
                 </div>
               )}
             </li>
           ))}
-          {users.length === 0 && <li className="text-center text-muted" style={{ padding: 20 }}>사용자 없음</li>}
+          {users.length === 0 && <li><EmptyState title="사용자 없음" compact /></li>}
         </ul>
       )}
 
+      {resetting && (
+        <ConfirmDialog
+          title="누적 횟수를 초기화할까요?"
+          description="모든 학생의 누적 횟수가 0이 됩니다. 기록은 남습니다."
+          confirmLabel="초기화"
+          tone="danger"
+          onConfirm={resetCounter}
+          onCancel={() => setResetting(false)}
+        />
+      )}
+
       {deleting && (
-        <DeleteUserModal user={deleting} onClose={() => setDeleting(null)}
-          onDeleted={(text) => { setDeleting(null); setMsg(text); setError(''); load() }} />
+        <ConfirmDialog
+          title="계정 삭제"
+          description={`이 계정과 관련 기록이 모두 삭제됩니다. 계속하려면 ${deleting.name} 학생의 학번을 입력하세요.`}
+          confirmWord={deleting.student_id}
+          confirmWordLabel={`학번 ${deleting.student_id} 입력`}
+          confirmLabel="삭제"
+          tone="danger"
+          busy={deleteBusy}
+          error={deleteError}
+          onConfirm={removeUser}
+          onCancel={() => setDeleting(null)}
+        />
       )}
 
       {penaltyUser && (
@@ -994,31 +992,24 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="flex-between" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <h1 className="page-title" style={{ marginBottom: 0 }}>관리자 대시보드</h1>
-        <button className="btn btn-outline btn-sm" onClick={() => navigate('/admin/qr-print')}>
-          🖨️ QR 인쇄
-        </button>
-      </div>
+      <PageTitle action={
+        <Button variant="secondary" size="sm" onClick={() => navigate('/admin/qr-print')}>
+          <IconPrint size={ICON} aria-hidden="true" /> QR 인쇄
+        </Button>
+      }>
+        관리자 대시보드
+      </PageTitle>
+
       <OperationModeCard op={op} onChanged={setOp} />
 
-      <div className="tabs tabs-scroll" style={{ marginTop: 16 }}>
-        {TABS.map(t => (
-          <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`}
-            onClick={() => setTab(t.key)}>
-            {t.label}
-            {t.badge > 0 && <span className="tab-badge">{t.badge}</span>}
-          </button>
-        ))}
-      </div>
-      <div>
-        {tab === 'verifications' && <VerificationsTab onPendingCount={loadPendingCount} />}
-        {tab === 'reports' && <ReportsTab onPendingCount={loadPendingReports} />}
-        {tab === 'users' && <UsersTab />}
-        {tab === 'seats' && <SeatsTab />}
-        {tab === 'reservations' && <ReservationsTab />}
-        {tab === 'audit' && <AuditTab />}
-      </div>
+      <Tabs items={TABS} value={tab} onChange={setTab} label="관리 항목" />
+
+      {tab === 'verifications' && <VerificationsTab onPendingCount={loadPendingCount} />}
+      {tab === 'reports' && <ReportsTab onPendingCount={loadPendingReports} />}
+      {tab === 'users' && <UsersTab />}
+      {tab === 'seats' && <SeatsTab />}
+      {tab === 'reservations' && <ReservationsTab />}
+      {tab === 'audit' && <AuditTab />}
     </div>
   )
 }

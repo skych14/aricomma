@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { reportApi } from '../api/index.js'
 import { fmtDate, fmtDatetime } from '../utils/helpers.js'
+import { Button, Notice } from './ui/index.js'
 
 /**
  * 내가 받은 패널티 안내. 대시보드 상단에 눈에 띄게 보여준다.
@@ -32,19 +33,18 @@ export default function PenaltyNotice() {
       {visible.map(p => {
         const suspended = isActiveSuspension(p)
         return (
-          <div key={p.id} className={`penalty-notice${suspended ? ' penalty-notice--suspend' : ''}`}>
-            <strong>
-              {suspended
-                ? `이용이 정지되었습니다 — 해제 예정 ${fmtDatetime(p.ends_at)}`
-                : `${p.level_label}를 받았습니다`}
-            </strong>
-            <p className="penalty-notice-reason">
-              사유: {p.reason} · {fmtDate(p.starts_at)}
-            </p>
-            {!p.acknowledged_at && (
-              <button className="btn btn-sm btn-outline" onClick={() => ack(p.id)}>확인</button>
+          <Notice
+            key={p.id}
+            tone={suspended ? 'danger' : 'warning'}
+            title={suspended
+              ? `이용이 정지되었습니다 — 해제 예정 ${fmtDatetime(p.ends_at)}`
+              : `${p.level_label}를 받았습니다`}
+            action={!p.acknowledged_at && (
+              <Button variant="secondary" size="sm" onClick={() => ack(p.id)}>확인</Button>
             )}
-          </div>
+          >
+            사유: {p.reason} · {fmtDate(p.starts_at)}
+          </Notice>
         )
       })}
     </>

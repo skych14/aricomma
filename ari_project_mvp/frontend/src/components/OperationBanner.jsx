@@ -1,5 +1,6 @@
 import React from 'react'
 import { fmtDuration, fmtTime, kstHour } from '../utils/helpers.js'
+import { Notice } from './ui/index.js'
 
 // 24시간 모드에서 밤 규칙(22:00~)을 미리 알려줄 구간
 const EVENING_HINT_FROM = 19
@@ -18,17 +19,15 @@ export default function OperationBanner({ op }) {
   if (op.mode === 'standard') {
     if (!op.is_open_now) {
       return (
-        <div className="op-banner op-banner--closed">
-          <strong>지금은 이용 시간이 아니에요</strong>
-          <p>{fmtTime(op.next_open_at)}부터 예약할 수 있어요</p>
-        </div>
+        <Notice tone="neutral" title="지금은 이용 시간이 아니에요">
+          {fmtTime(op.next_open_at)}부터 예약할 수 있어요
+        </Notice>
       )
     }
     return (
-      <div className="op-banner op-banner--open">
-        <strong>오늘 이용 시간 {fmtTime(op.opens_at)}~{fmtTime(op.closes_at)}</strong>
-        <p>기본 2시간 · 지금 체크인하면 {fmtTime(op.usage_ends_at_if_checkin_now)}까지 ({usage})</p>
-      </div>
+      <Notice tone="info" title={`오늘 이용 시간 ${fmtTime(op.opens_at)}~${fmtTime(op.closes_at)}`}>
+        기본 2시간 · 지금 체크인하면 {fmtTime(op.usage_ends_at_if_checkin_now)}까지 ({usage})
+      </Notice>
     )
   }
 
@@ -43,10 +42,8 @@ export default function OperationBanner({ op }) {
     hint = `지금 체크인하면 ${fmtTime(op.usage_ends_at_if_checkin_now)}까지 이용할 수 있어요`
   }
 
+  // 시험기간 24시간은 특별 운영이라 브랜드 면으로 강조 (주황 위 글자는 --ink)
   return (
-    <div className="op-banner op-banner--extended">
-      <strong>시험기간 24시간 개방 · 기본 2시간</strong>
-      <p>{hint}</p>
-    </div>
+    <Notice tone="brand" title="시험기간 24시간 개방 · 기본 2시간">{hint}</Notice>
   )
 }

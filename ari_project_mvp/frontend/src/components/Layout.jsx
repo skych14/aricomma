@@ -1,38 +1,14 @@
 import React from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { AppHeader, BottomNav } from './ui/index.js'
 
 function StudentLayout({ user, onLogout, children }) {
   return (
     <div className="app-layout">
-      <header className="header">
-        <span className="header-brand">🛏️ 아리쉼표</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="header-name">{user.name}</span>
-          <button className="btn-logout" onClick={onLogout}>로그아웃</button>
-        </div>
-      </header>
-
+      <AppHeader userName={user.name} onLogout={onLogout} />
       <main className="app-main">{children}</main>
-
-      <nav className="bottom-nav">
-        <NavLink to="/seats" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span className="bottom-nav-icon">🛏️</span>
-          <span>좌석 예약</span>
-        </NavLink>
-        <NavLink to="/dashboard" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span className="bottom-nav-icon">🏠</span>
-          <span>대시보드</span>
-        </NavLink>
-        <NavLink to="/report" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span className="bottom-nav-icon">🚨</span>
-          <span>신고</span>
-        </NavLink>
-        <NavLink to="/verify" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span className="bottom-nav-icon">📋</span>
-          <span>인증</span>
-        </NavLink>
-      </nav>
+      <BottomNav />
     </div>
   )
 }
@@ -40,14 +16,7 @@ function StudentLayout({ user, onLogout, children }) {
 function AdminLayout({ user, onLogout, children }) {
   return (
     <div className="app-layout">
-      <header className="header">
-        <NavLink to="/admin" className="header-brand">🛏️ 아리쉼표</NavLink>
-        <nav className="header-nav">
-          <NavLink to="/admin" end className={({ isActive }) => isActive ? 'active' : ''}>관리자</NavLink>
-          <span className="header-name" style={{ marginLeft: 4 }}>{user.name}</span>
-          <button className="btn-logout" onClick={onLogout}>로그아웃</button>
-        </nav>
-      </header>
+      <AppHeader to="/admin" userName={user.name} onLogout={onLogout} />
       <main className="app-main app-main--wide">{children}</main>
     </div>
   )

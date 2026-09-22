@@ -1,0 +1,265 @@
+/* ── 공용 UI 부품 ────────────────────────────────────────────────────────
+   화면(page)은 여기 정의된 클래스만 쓰고, 색·간격·모서리는 tokens.css 변수만
+   참조한다. 이 파일에 새 색상값(hex/rgb)을 적지 않는다.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* ── Button ─────────────────────────────────────────────── */
+.ui-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--control-height); padding: 0 18px;
+  border-radius: var(--radius-input); border: 1px solid transparent;
+  font-family: var(--font-sans); font-size: var(--fs-body); font-weight: 700;
+  line-height: 1.2; cursor: pointer; transition: background .15s, border-color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-btn:disabled { opacity: .5; cursor: not-allowed; }
+.ui-btn:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 2px; }
+
+/* 주황 면 위 흰 글자 금지 — 주 버튼은 --brand-soft 면 + --ink 글자 */
+.ui-btn--primary { background: var(--brand-soft); color: var(--ink); }
+.ui-btn--primary:hover:not(:disabled) { background: var(--brand); }
+.ui-btn--secondary { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.ui-btn--secondary:hover:not(:disabled) { background: var(--surface-page); }
+.ui-btn--ghost { background: none; color: var(--brand-text); }
+.ui-btn--ghost:hover:not(:disabled) { background: var(--surface-tint); }
+.ui-btn--danger { background: var(--surface); color: var(--danger); border-color: var(--danger); }
+.ui-btn--danger:hover:not(:disabled) { background: var(--danger-bg); }
+
+.ui-btn--sm { min-height: 36px; padding: 0 12px; font-size: var(--fs-body-sm); }
+.ui-btn--block { width: 100%; }
+/* 목록형 버튼(거절 사유 프리셋 등) — 글자가 길어도 왼쪽 정렬로 읽히게 */
+.ui-btn--align-start { justify-content: flex-start; text-align: left; }
+
+/* ── Spinner ────────────────────────────────────────────── */
+.ui-spinner {
+  display: inline-block; width: 18px; height: 18px; flex-shrink: 0;
+  border: 2px solid var(--line); border-top-color: var(--brand-strong);
+  border-radius: 50%; animation: ui-spin .7s linear infinite;
+}
+.ui-spinner--sm { width: 14px; height: 14px; }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+.ui-loading {
+  display: flex; justify-content: center; align-items: center; gap: var(--space-2);
+  padding: 40px var(--space-4); color: var(--ink-muted); font-size: var(--fs-body-sm);
+}
+
+/* ── TextField ──────────────────────────────────────────── */
+.ui-field { margin-bottom: var(--space-3); }
+.ui-field--inline { margin-bottom: 0; }
+.ui-field-label {
+  display: block; font-size: var(--fs-label); font-weight: 700;
+  color: var(--ink); margin-bottom: var(--space-1);
+}
+.ui-field-optional { font-weight: 500; color: var(--ink-muted); }
+.ui-input {
+  width: 100%; min-height: var(--control-height); padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-input);
+  font-family: var(--font-sans); font-size: var(--fs-body); font-weight: 500;
+  color: var(--ink); background: var(--surface);
+  transition: border-color .15s;
+}
+.ui-input::placeholder { color: var(--ink-placeholder); opacity: 1; }
+/* 포커스는 2px — 두께가 늘어난 만큼 padding을 줄여 높이를 유지한다 */
+.ui-input:focus { outline: none; border: 2px solid var(--brand-strong); padding: 9px 11px; }
+.ui-input.is-error { border-color: var(--danger); }
+textarea.ui-input { min-height: 0; resize: vertical; line-height: 1.5; }
+.ui-field-error { margin-top: var(--space-1); font-size: var(--fs-body-sm); color: var(--danger); }
+.ui-field-hint { margin-top: var(--space-1); font-size: var(--fs-body-sm); color: var(--ink-muted); }
+
+/* ── Card ───────────────────────────────────────────────── */
+.ui-card {
+  background: var(--surface); border-radius: var(--radius-card);
+  padding: var(--space-5); margin-bottom: var(--space-4);
+}
+.ui-card--elevated { box-shadow: var(--shadow-card); }
+.ui-card--flat { border: 1px solid var(--line); }
+.ui-card-title {
+  font-size: var(--fs-title); font-weight: 700; color: var(--ink);
+  margin-bottom: var(--space-3);
+}
+
+/* ── PageTitle ──────────────────────────────────────────── */
+.ui-page-title {
+  font-size: var(--fs-title); font-weight: 700; color: var(--ink);
+  margin-bottom: var(--space-4);
+}
+.ui-page-title--brand { color: var(--brand-text); }
+.ui-page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4);
+}
+.ui-page-head .ui-page-title { margin-bottom: 0; }
+
+/* ── Notice ─────────────────────────────────────────────── */
+.ui-notice {
+  border-radius: var(--radius-input); padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3); border: 1px solid transparent;
+  font-size: var(--fs-body); line-height: 1.5;
+}
+.ui-notice-title { display: block; font-size: var(--fs-body); font-weight: 700; line-height: 1.45; }
+.ui-notice-title + .ui-notice-body { margin-top: var(--space-1); }
+.ui-notice-body { font-size: var(--fs-body-sm); word-break: break-word; }
+.ui-notice-action { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+/* 안내(info)는 상태가 아니므로 상태 색을 쓰지 않는다 */
+.ui-notice--info { background: var(--surface-page); border-color: var(--brand-soft); color: var(--brand-text); }
+.ui-notice--brand { background: var(--brand-soft); border-color: var(--brand-strong); color: var(--ink); }
+.ui-notice--neutral { background: var(--seat-unavailable); border-color: var(--line); color: var(--ink); }
+.ui-notice--success { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+.ui-notice--warning { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+.ui-notice--danger { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+/* 큰 안내 (인증 상태처럼 화면의 주인공일 때) */
+.ui-notice--lg { padding: var(--space-4); }
+.ui-notice--lg .ui-notice-title { font-size: var(--fs-title); }
+.ui-notice--center { text-align: center; }
+
+/* ── StatusBadge ────────────────────────────────────────── */
+.ui-badge {
+  display: inline-block; padding: 3px 9px; border-radius: var(--radius-pill);
+  font-size: var(--fs-label); font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+}
+.ui-badge--ok { background: var(--success-bg); color: var(--success); }
+.ui-badge--wait { background: var(--warning-bg); color: var(--warning); }
+.ui-badge--bad { background: var(--danger-bg); color: var(--danger); }
+.ui-badge--neutral { background: var(--surface-page); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.ui-badge--brand { background: var(--brand-soft); color: var(--ink); }
+/* 좌석 현황은 색만으로 구분되지 않게 빗금을 함께 쓴다 (색약 대응) */
+.ui-badge--wait-hatch {
+  background: repeating-linear-gradient(45deg,
+    var(--warning-bg), var(--warning-bg) 3px, var(--surface) 3px, var(--surface) 6px);
+  color: var(--warning);
+}
+.ui-badge--bad-hatch {
+  background: repeating-linear-gradient(-45deg,
+    var(--danger-bg), var(--danger-bg) 3px, var(--surface) 3px, var(--surface) 6px);
+  color: var(--danger);
+}
+.ui-badge-count {
+  display: inline-block; margin-left: 5px; min-width: 18px; padding: 0 5px;
+  background: var(--danger); color: var(--surface); border-radius: var(--radius-pill);
+  font-size: var(--fs-seat-status); font-weight: 700; line-height: 18px; text-align: center;
+}
+
+/* ── Tabs (세그먼트) ────────────────────────────────────── */
+.ui-tabs {
+  display: flex; gap: 0; margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.ui-tabs::-webkit-scrollbar { display: none; }
+.ui-tab {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  flex-shrink: 0; padding: 10px 14px; margin-bottom: -1px;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  font-family: var(--font-sans); font-size: var(--fs-body); font-weight: 500;
+  color: var(--ink-muted); cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-tab:hover { color: var(--brand-text); }
+.ui-tab.is-active { color: var(--brand-text); font-weight: 700; border-bottom-color: var(--brand-strong); }
+.ui-tab:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: -2px; }
+.ui-tab-count { font-weight: 500; font-size: var(--fs-label); }
+/* 탭이 화면 폭을 나눠 가져야 할 때 (남/여 학우실, 일반방/굴방) */
+.ui-tabs--fill .ui-tab { flex: 1; justify-content: center; }
+
+/* ── AppHeader ──────────────────────────────────────────── */
+.ui-header {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  height: 52px; padding: 0 var(--space-4);
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.ui-header-logo { flex-shrink: 0; }
+/* 헤더 안 워드마크는 18px (Logo가 font-size는 지정하지 않으므로 여기서 정한다) */
+.ui-header-logo span { font-size: var(--fs-title); }
+a.ui-header-logo:hover { text-decoration: none; }
+.ui-header-right { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.ui-header-name {
+  font-size: var(--fs-label); color: var(--ink-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── BottomNav ──────────────────────────────────────────── */
+.ui-bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  display: flex; height: var(--bottom-nav-height);
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.ui-bottom-nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+  padding: 6px 0; border: none; background: none; cursor: pointer;
+  color: var(--ink-muted); font-size: var(--fs-label); font-weight: 500;
+  text-decoration: none; transition: color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-bottom-nav-item:hover { color: var(--brand-text); text-decoration: none; }
+.ui-bottom-nav-item.is-active { color: var(--brand-text); font-weight: 700; }
+
+/* ── MenuItem (알약형 목록) ─────────────────────────────── */
+.ui-menu-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; margin-bottom: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-tint); border: none; border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pill);
+  font-family: var(--font-sans); font-size: var(--fs-body); font-weight: 500;
+  color: var(--ink); text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-menu-item:hover { background: var(--surface-page); text-decoration: none; color: var(--ink); }
+.ui-menu-item-icon { display: inline-flex; flex-shrink: 0; color: var(--brand-strong); }
+.ui-menu-item-label { flex: 1; min-width: 0; }
+.ui-menu-item-chevron { display: inline-flex; flex-shrink: 0; color: var(--ink-muted); }
+
+/* ── SeatTile ───────────────────────────────────────────── */
+.ui-seat {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: var(--seat-width); height: var(--seat-height); padding: 0;
+  border: 1px solid var(--line); border-radius: var(--radius-seat);
+  background: var(--seat-unavailable);
+  font-family: var(--font-sans); color: var(--ink); line-height: 1.2;
+  cursor: pointer; transition: box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-seat--available { background: var(--seat-available); }
+.ui-seat--available:hover { box-shadow: var(--shadow-card); }
+/* 이용불가는 색만으로 구분되지 않도록 빗금 패턴 (색약 대응) */
+.ui-seat--unavailable {
+  background: repeating-linear-gradient(135deg,
+    var(--line) 0 1px, var(--seat-unavailable) 1px 6px);
+  cursor: not-allowed;
+}
+/* 평면도처럼 크기를 style로 직접 받는 배치 — 토큰 고정 크기를 푼다 */
+.ui-seat--free { width: auto; height: auto; }
+/* 선택은 색이 아니라 테두리 두께(3px)로 구분한다 */
+.ui-seat--selected { border: 3px solid var(--seat-selected); }
+/* 내가 예약한 좌석 — 선택과 구분되게 브랜드 면을 함께 쓴다 */
+.ui-seat--mine { border: 3px solid var(--brand-strong); background: var(--brand-soft); }
+.ui-seat:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ui-seat-number { font-size: var(--fs-seat-number); font-weight: 700; }
+.ui-seat-status { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-seat-status); }
+.ui-seat-accessible { display: inline-flex; color: var(--brand-strong); }
+
+/* ── Modal / ConfirmDialog ──────────────────────────────── */
+.ui-modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center; padding: var(--space-3);
+  background: var(--scrim);
+}
+.ui-modal {
+  width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; margin-bottom: 0;
+}
+.ui-modal-desc { font-size: var(--fs-body); color: var(--ink); white-space: pre-line; line-height: 1.55; }
+.ui-modal-desc + .ui-field { margin-top: var(--space-4); }
+.ui-modal-actions {
+  display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4);
+}
+
+/* ── EmptyState ─────────────────────────────────────────── */
+.ui-empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  padding: 32px var(--space-4); text-align: center;
+  color: var(--ink-muted); font-size: var(--fs-body-sm);
+}
+.ui-empty-icon { color: var(--line); }
+.ui-empty--row { padding: 20px var(--space-4); }

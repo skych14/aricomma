@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
 import { operationApi, reservationApi } from '../../api/index.js'
+import {
+  Button, Card, LoadingBox, Notice, PageTitle, Spinner,
+} from '../../components/ui/index.js'
+import {
+  IconBack, IconCameraOff, IconCelebrate, IconCheck, IconDone, IconExpired,
+} from '../../components/ui/icons.jsx'
 import { fmtTime, parseUTC } from '../../utils/helpers.js'
 
 const SCANNER_ELEMENT_ID = 'checkin-qr-reader'
@@ -227,66 +233,64 @@ export default function CheckinPage() {
     startScanner()
   }, [loading, reservation, success, startScanner])
 
-  if (loading) return <div className="loading-box"><span className="spinner" /></div>
+  if (loading) return <LoadingBox />
 
   if (!reservation) return (
-    <div className="card">
-      <div className="alert alert-error">예약을 찾을 수 없습니다.</div>
-      <button className="btn btn-outline mt-4" onClick={() => navigate('/dashboard')}>대시보드로</button>
-    </div>
+    <Card elevated>
+      <Notice tone="danger">예약을 찾을 수 없습니다.</Notice>
+      <Button variant="secondary" onClick={() => navigate('/dashboard')}>대시보드로</Button>
+    </Card>
   )
 
   if (success) return (
-    <div className="card text-center">
-      <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎉</div>
-      <h2>체크인 완료!</h2>
-      <p className="text-muted mt-2">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용이 시작되었습니다.</p>
+    <Card elevated className="checkin-result">
+      <IconCelebrate size={48} className="checkin-result-icon" aria-hidden="true" />
+      <h2 className="checkin-result-title">체크인 완료!</h2>
+      <p className="text-muted">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용이 시작되었습니다.</p>
       {usageEnd && (
         <p className="usage-end-line">이용 종료 예정 <strong>{fmtTime(usageEnd)}</strong></p>
       )}
       <p className="text-muted">잠시 후 대시보드로 이동합니다...</p>
-    </div>
+    </Card>
   )
 
   if (reservation.status === 'checked_in') return (
-    <div className="card text-center">
-      <div style={{ fontSize: '3rem' }}>✅</div>
-      <h2 style={{ margin: '12px 0' }}>이미 체크인된 예약입니다</h2>
+    <Card elevated className="checkin-result">
+      <IconDone size={48} className="checkin-result-icon" aria-hidden="true" />
+      <h2 className="checkin-result-title">이미 체크인된 예약입니다</h2>
       <p className="text-muted">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용 중</p>
-      <button className="btn btn-primary mt-4" onClick={() => navigate('/dashboard')}>대시보드로</button>
-    </div>
+      <Button onClick={() => navigate('/dashboard')}>대시보드로</Button>
+    </Card>
   )
 
   if (['expired', 'cancelled', 'completed'].includes(reservation.status)) return (
-    <div className="card text-center">
-      <div style={{ fontSize: '3rem' }}>⏰</div>
-      <h2 style={{ margin: '12px 0' }}>유효하지 않은 예약입니다</h2>
+    <Card elevated className="checkin-result">
+      <IconExpired size={48} className="checkin-result-icon" aria-hidden="true" />
+      <h2 className="checkin-result-title">유효하지 않은 예약입니다</h2>
       <p className="text-muted">다시 예약해주세요.</p>
-      <button className="btn btn-primary mt-4" onClick={() => navigate('/seats')}>좌석 예약하기</button>
-    </div>
+      <Button onClick={() => navigate('/seats')}>좌석 예약하기</Button>
+    </Card>
   )
 
   return (
     <div>
-      <h1 className="page-title">QR 체크인</h1>
+      <PageTitle>QR 체크인</PageTitle>
 
-      <div className="card">
-        <div className="flex-between" style={{ marginBottom: 12, alignItems: 'flex-start' }}>
+      <Card elevated>
+        <div className="checkin-head">
           <div>
             <div className="section-title">예약 좌석: <span className="seat-no">{reservation.seat_number || '—'}</span></div>
             <div className="text-muted">{reservation.location} · 침대</div>
           </div>
           <div className="text-center">
-            <div className="text-muted" style={{ fontSize: '.82rem' }}>체크인 마감</div>
+            <div className="checkin-deadline-label">체크인 마감</div>
             <Countdown expiresAt={reservation.expires_at} />
           </div>
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && <Notice tone="danger">{error}</Notice>}
 
-        <p className="text-muted text-center" style={{ fontSize: '.92rem', marginBottom: 10 }}>
-          <strong>현장 침대에 부착된 QR을 비춰주세요</strong>
-        </p>
+        <p className="checkin-guide"><strong>현장 침대에 부착된 QR을 비춰주세요</strong></p>
 
         {op?.usage_ends_at_if_checkin_now && (
           <p className="usage-end-line">
@@ -298,26 +302,28 @@ export default function CheckinPage() {
         <div className={`scanner-frame${scanHit ? ' hit' : ''}`}>
           <div id={SCANNER_ELEMENT_ID} className="scanner-video" />
           {scanning && !scanHit && !cameraError && <div className="scanner-guide" />}
-          {scanHit && <div className="scanner-hit-mark">✓</div>}
+          {scanHit && (
+            <div className="scanner-hit-mark">
+              <IconCheck size={72} strokeWidth={3} aria-hidden="true" />
+            </div>
+          )}
 
           {!scanHit && starting && (
             <div className="scanner-placeholder">
-              <span className="spinner" /> 카메라 준비 중...
+              <Spinner /> 카메라 준비 중...
             </div>
           )}
 
           {!scanHit && !starting && cameraError && (
             <div className="scanner-error">
-              <div className="scanner-error-icon" aria-hidden="true">📷</div>
+              <IconCameraOff size={32} aria-hidden="true" />
               <p className="scanner-error-title">카메라를 사용할 수 없어요</p>
               <p className="scanner-error-desc">
                 {cameraError === CAMERA_DENIED
                   ? '브라우저 주소창의 자물쇠(ⓘ) 아이콘 → 카메라 → ‘허용’으로 바꾼 뒤 다시 시도해 주세요'
                   : '카메라가 있는 휴대폰으로 접속해 주세요'}
               </p>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => startScanner()}>
-                다시 시도
-              </button>
+              <Button size="sm" onClick={() => startScanner()}>다시 시도</Button>
               <p className="scanner-error-note">
                 계속 안 되면 관리자에게 문의해 주세요. 체크인 마감 시간이 지나면 예약이 자동 취소됩니다.
               </p>
@@ -326,15 +332,13 @@ export default function CheckinPage() {
         </div>
 
         {submitting && (
-          <div className="text-center text-muted mt-2" style={{ fontSize: '.88rem' }}>
-            <span className="spinner" /> 체크인 중...
-          </div>
+          <p className="checkin-submitting"><Spinner size="sm" /> 체크인 중...</p>
         )}
 
-        <button className="btn btn-ghost btn-sm mt-4" onClick={() => navigate('/dashboard')}>
-          ← 대시보드로
-        </button>
-      </div>
+        <Button variant="ghost" size="sm" className="mt-4" onClick={() => navigate('/dashboard')}>
+          <IconBack size={16} aria-hidden="true" /> 대시보드로
+        </Button>
+      </Card>
     </div>
   )
 }

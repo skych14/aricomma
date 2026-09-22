@@ -2,10 +2,14 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { operationApi, reservationApi, seatApi } from '../../api/index.js'
 import OperationBanner from '../../components/OperationBanner.jsx'
+import {
+  Button, EmptyState, LoadingBox, Notice, PageTitle, SeatTile, Tabs,
+} from '../../components/ui/index.js'
+import { IconAccessible, IconFemale, IconMale } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { fmtTime } from '../../utils/helpers.js'
 
-// 장애인 배려 권장석 — ♿ 표시만 하고 예약 제한·우선권은 없음.
+// 장애인 배려 권장석 — 표시만 하고 예약 제한·우선권은 없음.
 // 좌석번호가 방마다 겹치므로(남/여 일반방 모두 A5-1 존재) 방(location) 단위로 관리
 const ACCESSIBLE_SEATS = {
   '남학우실 일반방': ['A5-1'],
@@ -56,26 +60,20 @@ function Ladder(props) {
   )
 }
 
-function SeatCard({ seat, accessible, selected, onSelect, className = '', style }) {
+/** 배치도의 좌석 한 칸 — 서버 좌석 객체를 SeatTile props로 옮긴다. */
+function Seat({ seat, accessible, selected, onSelect, className = '', style, free }) {
   if (!seat) return null
-  const available = isAvailable(seat)
-  const statusText = available ? '이용가능' : '이용불가'
   return (
-    <button
-      type="button"
-      className={`bunk-seat ${available ? 'is-available' : 'is-unavailable'}${selected ? ' is-selected' : ''} ${className}`}
+    <SeatTile
+      seatNumber={seat.seat_number}
+      floor={seat.floor}
+      status={!isAvailable(seat) ? 'unavailable' : selected ? 'selected' : 'available'}
+      accessible={accessible}
+      free={free}
+      className={className}
       style={style}
-      disabled={!available}
-      aria-pressed={available ? selected : undefined}
-      aria-label={`${seat.seat_number}, ${seat.floor}층, ${statusText}${accessible ? ', 장애인 배려 권장석' : ''}`}
-      onClick={() => onSelect(seat)}
-    >
-      <span className="bunk-seat-number">{seat.seat_number}</span>
-      <span className="bunk-seat-status">
-        {statusText}
-        {accessible && <span className="bunk-seat-accessible" aria-hidden="true">♿</span>}
-      </span>
-    </button>
+      onSelect={() => onSelect(seat)}
+    />
   )
 }
 
@@ -90,17 +88,17 @@ function Entrance({ direction }) {
 
 // ── 일반방: 2열 그리드 ───────────────────────────────────────────────────
 
-function BunkPair({ pair, getCardProps }) {
+function BunkPair({ pair, getSeatProps }) {
   return (
     <div className="bunk-pair">
-      <SeatCard seat={pair[2]} className="bunk-pair-upper" {...getCardProps(pair[2])} />
+      <Seat seat={pair[2]} className="bunk-pair-upper" {...getSeatProps(pair[2])} />
       <Ladder className="bunk-pair-ladder" />
-      <SeatCard seat={pair[1]} className="bunk-pair-lower" {...getCardProps(pair[1])} />
+      <Seat seat={pair[1]} className="bunk-pair-lower" {...getSeatProps(pair[1])} />
     </div>
   )
 }
 
-function GridRoom({ room, bunks, getCardProps }) {
+function GridRoom({ room, bunks, getSeatProps }) {
   const lastRow = room.rows.length - 1
   return (
     <div className="grid-room">
@@ -109,7 +107,7 @@ function GridRoom({ room, bunks, getCardProps }) {
         <div key={i} className="grid-room-row">
           {row.map((group, j) => (
             <div key={j} className="grid-room-cell">
-              {group && bunks[group] && <BunkPair pair={bunks[group]} getCardProps={getCardProps} />}
+              {group && bunks[group] && <BunkPair pair={bunks[group]} getSeatProps={getSeatProps} />}
             </div>
           ))}
           <div className="grid-room-floors" aria-hidden="true">
@@ -134,8 +132,9 @@ const pct = (x, y, w, h) => ({
 const PLAN_SEAT = { w: 135, h: 122, upperY: 48, lowerY: 190, lowerDx: 86 }
 const planGroupX = (i) => 72 + i * 219
 
-function PlanRoom({ room, bunks, getCardProps }) {
+function PlanRoom({ room, bunks, getSeatProps }) {
   return (
+    // 평면도는 시안 좌표계를 비율로 유지해야 해서 크기를 style로 준다 (위치 계산 예외)
     <div className="plan-room" style={{ aspectRatio: `${VB.w} / ${VB.h}` }}>
       <svg className="plan-room-svg" viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`} aria-hidden="true" focusable="false">
         <rect x="50" y="30" width="705" height="635" fill="none" stroke="currentColor" strokeWidth="3" />
@@ -153,10 +152,11 @@ function PlanRoom({ room, bunks, getCardProps }) {
         const x = planGroupX(i)
         return (
           <React.Fragment key={group}>
-            <SeatCard seat={pair[2]} className="plan-seat"
-              style={pct(x, PLAN_SEAT.upperY, PLAN_SEAT.w, PLAN_SEAT.h)} {...getCardProps(pair[2])} />
-            <SeatCard seat={pair[1]} className="plan-seat"
-              style={pct(x + PLAN_SEAT.lowerDx, PLAN_SEAT.lowerY, PLAN_SEAT.w, PLAN_SEAT.h)} {...getCardProps(pair[1])} />
+            {/* 좌석 위치·크기는 시안 좌표를 %로 바꾼 값 (위치 계산 예외) */}
+            <Seat seat={pair[2]} free className="plan-seat"
+              style={pct(x, PLAN_SEAT.upperY, PLAN_SEAT.w, PLAN_SEAT.h)} {...getSeatProps(pair[2])} />
+            <Seat seat={pair[1]} free className="plan-seat"
+              style={pct(x + PLAN_SEAT.lowerDx, PLAN_SEAT.lowerY, PLAN_SEAT.w, PLAN_SEAT.h)} {...getSeatProps(pair[1])} />
           </React.Fragment>
         )
       })}
@@ -165,6 +165,8 @@ function PlanRoom({ room, bunks, getCardProps }) {
 }
 
 // ── 페이지 ───────────────────────────────────────────────────────────────
+
+const ICON = 18
 
 export default function SeatsPage() {
   const { user, refreshUser } = useAuth()
@@ -208,9 +210,9 @@ export default function SeatsPage() {
   const closed = op ? !op.is_open_now : false
 
   const selectGender = (g) => { setGenderTab(g); setRoomIdx(0); setSelectedId(null); setError('') }
-  const selectRoom = (i) => { setRoomIdx(i); setSelectedId(null); setError('') }
+  const selectRoom = (key) => { setRoomIdx(Number(key)); setSelectedId(null); setError('') }
 
-  const getCardProps = (seat) => ({
+  const getSeatProps = (seat) => ({
     accessible: !!seat && accessible.includes(seat.seat_number),
     selected: !!seat && seat.id === selected?.id,
     onSelect: (s) => { setError(''); setSelectedId(s.id === selected?.id ? null : s.id) },
@@ -241,67 +243,58 @@ export default function SeatsPage() {
   }
   const genderCount = { male: count(s => s.room_gender === 'male'), female: count(s => s.room_gender === 'female') }
 
+  const genderTabs = [
+    { key: 'male', label: '남학우실', icon: <IconMale size={ICON} aria-hidden="true" /> },
+    { key: 'female', label: '여학우실', icon: <IconFemale size={ICON} aria-hidden="true" /> },
+  ].map(t => ({ ...t, count: `(${genderCount[t.key].available}/${genderCount[t.key].total})` }))
+
+  const roomTabs = rooms.map((r, i) => {
+    const c = count(s => s.location === r.location)
+    return { key: String(i), label: r.label, count: `${c.available}/${c.total}` }
+  })
+
   return (
     <div>
-      <h1 className="page-title">좌석 현황</h1>
+      <PageTitle>좌석 현황</PageTitle>
 
       <OperationBanner op={op} />
 
       {!user?.is_verified && (
-        <div className="verify-gate">
-          <strong>학생 인증이 필요해요</strong>
-          <p>재학생 확인이 끝나야 좌석을 예약할 수 있어요.</p>
-          <button className="btn btn-primary btn-block mt-4" onClick={() => navigate('/verify')}>
-            인증하러 가기
-          </button>
-        </div>
+        <Notice
+          tone="warning" lg
+          title="학생 인증이 필요해요"
+          action={<Button block onClick={() => navigate('/verify')}>인증하러 가기</Button>}
+        >
+          재학생 확인이 끝나야 좌석을 예약할 수 있어요.
+        </Notice>
       )}
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
       {/* 성별 탭 */}
-      <div className="tabs" style={{ marginBottom: 12 }}>
-        {[['male', '🚹 남학우실'], ['female', '🚺 여학우실']].map(([g, label]) => (
-          <button key={g} className={`tab ${genderTab === g ? 'active' : ''}`} onClick={() => selectGender(g)}>
-            {label}
-            <span style={{ marginLeft: 6, fontSize: '.75rem', fontWeight: 400 }}>
-              ({genderCount[g].available}/{genderCount[g].total})
-            </span>
-          </button>
-        ))}
-      </div>
+      <Tabs items={genderTabs} value={genderTab} onChange={selectGender} fill label="학우실 선택" />
 
       {/* 방 선택 (여학우실: 일반방 / 굴방) */}
       {rooms.length > 1 && (
-        <div className="room-switch" role="group" aria-label="방 선택">
-          {rooms.map((r, i) => {
-            const c = count(s => s.location === r.location)
-            return (
-              <button key={r.location} type="button" aria-pressed={r === room}
-                className={`room-switch-btn${r === room ? ' active' : ''}`} onClick={() => selectRoom(i)}>
-                {r.label} <span className="room-switch-count">{c.available}/{c.total}</span>
-              </button>
-            )
-          })}
-        </div>
+        <Tabs items={roomTabs} value={String(roomIdx)} onChange={selectRoom} fill label="방 선택" />
       )}
 
       <div className="seat-legend" aria-hidden="true">
         <span><i className="seat-legend-swatch is-available" />이용가능</span>
         <span><i className="seat-legend-swatch is-unavailable" />이용불가</span>
         <span><i className="seat-legend-swatch is-selected" />선택</span>
-        <span>♿ 배려 권장석</span>
+        <span><IconAccessible size={14} className="seat-legend-accessible" /> 배려 권장석</span>
       </div>
 
       {loading ? (
-        <div className="loading-box"><span className="spinner" /> 좌석 정보 불러오는 중...</div>
+        <LoadingBox>좌석 정보 불러오는 중...</LoadingBox>
       ) : roomSeats.length === 0 ? (
-        <div className="text-muted" style={{ textAlign: 'center', padding: '32px 0' }}>좌석 정보가 없습니다.</div>
+        <EmptyState title="좌석 정보가 없습니다." />
       ) : (
         <section className="seat-map" aria-label={`${room.location} 배치도`}>
           <h2 className="seat-map-title">이용하실 좌석을 선택하세요.</h2>
           {room.type === 'grid'
-            ? <GridRoom room={room} bunks={bunks} getCardProps={getCardProps} />
-            : <PlanRoom room={room} bunks={bunks} getCardProps={getCardProps} />}
+            ? <GridRoom room={room} bunks={bunks} getSeatProps={getSeatProps} />
+            : <PlanRoom room={room} bunks={bunks} getSeatProps={getSeatProps} />}
         </section>
       )}
 
@@ -316,23 +309,20 @@ export default function SeatsPage() {
             </span>
           </div>
           {user?.is_verified ? (
-            <button className="btn btn-primary" onClick={handleReserve}
-              disabled={reserving || closed}
+            <Button onClick={handleReserve} loading={reserving} disabled={closed}
               title={closed ? '지금은 이용 시간이 아니에요' : undefined}>
-              {reserving ? <span className="spinner" /> : closed ? '이용 시간 아님' : '예약하기'}
-            </button>
+              {closed ? '이용 시간 아님' : '예약하기'}
+            </Button>
           ) : (
-            <button className="btn btn-primary" onClick={() => navigate('/verify')}>
-              인증하러 가기
-            </button>
+            <Button onClick={() => navigate('/verify')}>인증하러 가기</Button>
           )}
         </div>
       )}
 
-      <div className="alert alert-info" style={{ marginTop: 8, fontSize: '.82rem' }}>
+      <Notice tone="info">
         좌석 예약 후 <strong>10분 내</strong>에 현장 침대에 부착된 QR을 스캔하여 체크인해야 합니다.
         체크인하지 않으면 예약이 자동으로 만료됩니다.
-      </div>
+      </Notice>
     </div>
   )
 }

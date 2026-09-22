@@ -79,13 +79,6 @@ export function statusLabel(s) {
   return STATUS_KO[s] || s
 }
 
-export function statusBadgeClass(s) {
-  if (['approved', 'completed', 'checked_in', 'available'].includes(s)) return 'badge-approved'
-  if (['pending', 'reserved'].includes(s)) return 'badge-pending'
-  if (['rejected', 'expired', 'cancelled', 'occupied'].includes(s)) return 'badge-rejected'
-  return ''
-}
-
 export function errMsg(e) {
   return e?.response?.data?.detail || e?.message || '오류가 발생했습니다'
 }

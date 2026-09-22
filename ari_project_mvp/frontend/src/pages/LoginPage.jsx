@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import Logo from '../components/Logo.jsx'
+import { Button, Notice, TextField } from '../components/ui/index.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
 export default function LoginPage() {
@@ -28,28 +30,21 @@ export default function LoginPage() {
   return (
     <div className="auth-wrap">
       <div className="auth-box">
-        <div className="auth-title">🛏️ 아리쉼표</div>
+        <div className="auth-logo"><Logo variant="mark" size={72} wordmark /></div>
         <div className="auth-sub">안양대학교 학우실 예약 서비스</div>
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && <Notice tone="danger">{error}</Notice>}
         <form onSubmit={submit}>
-          <div className="form-group">
-            <label className="form-label">이메일</label>
-            <input className="form-input" type="email" name="email" value={form.email}
-              onChange={handle} placeholder="example@anyang.ac.kr" required />
-          </div>
-          <div className="form-group">
-            <label className="form-label">비밀번호</label>
-            <input className="form-input" type="password" name="password" value={form.password}
-              onChange={handle} placeholder="비밀번호" required />
-          </div>
-          <button className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? <><span className="spinner" /> 로그인 중...</> : '로그인'}
-          </button>
+          <TextField label="이메일" type="email" name="email" value={form.email}
+            onChange={handle} placeholder="example@anyang.ac.kr" required />
+          <TextField label="비밀번호" type="password" name="password" value={form.password}
+            onChange={handle} placeholder="비밀번호" required />
+          <Button type="submit" block loading={loading}>
+            {loading ? '로그인 중...' : '로그인'}
+          </Button>
         </form>
         <div className="text-center mt-4 text-muted">
           계정이 없으신가요? <Link to="/register">회원가입</Link>
         </div>
-
       </div>
     </div>
   )

@@ -1,9 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { verificationApi } from '../../api/index.js'
+import {
+  Button, Card, EmptyState, LoadingBox, Notice, PageTitle, StatusBadge, TextField,
+} from '../../components/ui/index.js'
+import { IconCollapse, IconExpand } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { shrinkImage } from '../../utils/image.js'
-import { errMsg, fmtDatetime, statusBadgeClass, statusLabel } from '../../utils/helpers.js'
+import { errMsg, fmtDatetime } from '../../utils/helpers.js'
 
 // 관리자 검토 목표 시간(시간 단위). 안내 문구에만 쓰인다.
 const REVIEW_HOURS = 24
@@ -14,7 +18,8 @@ function PrivacyNotice() {
     <div className="consent-notice">
       <button type="button" className="consent-toggle" onClick={() => setOpen(o => !o)}
         aria-expanded={open}>
-        개인정보 수집·이용 안내 {open ? '접기 ▲' : '자세히 보기 ▼'}
+        개인정보 수집·이용 안내 {open ? '접기' : '자세히 보기'}
+        {open ? <IconCollapse size={16} aria-hidden="true" /> : <IconExpand size={16} aria-hidden="true" />}
       </button>
       {open && (
         <dl className="consent-detail">
@@ -34,8 +39,7 @@ function PrivacyNotice() {
 
 function HowTo() {
   return (
-    <div className="card">
-      <div className="card-title">이런 화면을 올려주세요</div>
+    <Card title="이런 화면을 올려주세요">
       <ol className="howto-list">
         <li>
           <strong>헤이영캠퍼스 모바일 학생증 화면</strong> <span className="howto-tag">권장</span>
@@ -51,7 +55,7 @@ function HowTo() {
         <li>장학금·성적 등 다른 정보가 보이면 가려서 올려주세요.</li>
         <li>포털 <strong>메인페이지 전체 캡처</strong>는 학번이 보이지 않고 불필요한 정보가 많아 권하지 않습니다.</li>
       </ul>
-    </div>
+    </Card>
   )
 }
 
@@ -117,100 +121,79 @@ export default function VerificationPage() {
 
   return (
     <div>
-      <h1 className="page-title">학생 인증</h1>
+      <PageTitle>학생 인증</PageTitle>
 
-      {/* 상태 안내 */}
+      {/* 상태 안내 — 이 화면의 주인공 */}
       {verified ? (
-        <div className="verify-status verify-status--ok">
-          <strong>인증 완료! 이제 좌석을 예약할 수 있어요</strong>
-          <button className="btn btn-primary btn-block mt-4" onClick={() => navigate('/seats')}>
-            좌석 예약하러 가기
-          </button>
-        </div>
+        <Notice tone="success" lg title="인증 완료! 이제 좌석을 예약할 수 있어요"
+          action={<Button block onClick={() => navigate('/seats')}>좌석 예약하러 가기</Button>} />
       ) : pending ? (
-        <div className="verify-status verify-status--wait">
-          <strong>관리자가 확인 중이에요</strong>
-          <p>보통 {REVIEW_HOURS}시간 이내에 처리됩니다.</p>
-        </div>
+        <Notice tone="warning" lg title="관리자가 확인 중이에요">
+          보통 {REVIEW_HOURS}시간 이내에 처리됩니다.
+        </Notice>
       ) : rejected ? (
-        <div className="verify-status verify-status--no">
-          <strong>인증이 거절되었어요</strong>
-          <p className="verify-reason">사유: {latest?.admin_note || '사유가 기록되지 않았습니다'}</p>
-          {!resubmit && (
-            <button className="btn btn-primary btn-block mt-4" onClick={() => setResubmit(true)}>
-              다시 제출하기
-            </button>
-          )}
-        </div>
+        <Notice tone="danger" lg title="인증이 거절되었어요"
+          action={!resubmit && (
+            <Button block onClick={() => setResubmit(true)}>다시 제출하기</Button>
+          )}>
+          사유: {latest?.admin_note || '사유가 기록되지 않았습니다'}
+        </Notice>
       ) : (
-        <div className="verify-status verify-status--new">
-          <strong>화면을 올리면 관리자 확인 후 예약할 수 있어요</strong>
-        </div>
+        <Notice tone="info" lg title="화면을 올리면 관리자 확인 후 예약할 수 있어요" />
       )}
 
-      {msg && <div className="alert alert-success">{msg}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {msg && <Notice tone="success">{msg}</Notice>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
       {showForm && (
         <>
           {/* 무엇과 대조되는지 알 수 있게 가입 정보를 먼저 보여준다 */}
-          <div className="card signup-info">
-            <div className="card-title">내 가입 정보 — 이 내용과 같아야 승인돼요</div>
+          <Card title="내 가입 정보 — 이 내용과 같아야 승인돼요">
             <div className="signup-info-row"><span>이름</span><strong>{user?.name || '—'}</strong></div>
             <div className="signup-info-row">
               <span>학번</span><strong className="mono-id">{user?.student_id || '—'}</strong>
             </div>
-          </div>
+          </Card>
 
           <HowTo />
 
-          <div className="card">
-            <div className="card-title">화면 캡처 올리기</div>
-            <form onSubmit={submit}>
-              <div className="form-group">
-                <input className="form-input" type="file" ref={fileRef}
-                  accept="image/*,.pdf" onChange={pickFile} />
-                <div className="form-hint">
-                  사진을 찍거나 갤러리에서 고를 수 있어요. 이미지 · PDF, 최대 10MB.
-                </div>
+          <Card as="form" title="화면 캡처 올리기" onSubmit={submit}>
+            <TextField type="file" ref={fileRef} accept="image/*,.pdf" onChange={pickFile}
+              label="파일 선택"
+              hint="사진을 찍거나 갤러리에서 고를 수 있어요. 이미지 · PDF, 최대 10MB." />
+
+            {previewUrl && (
+              <div className="upload-preview">
+                <img src={previewUrl} alt="올릴 화면 미리보기" />
               </div>
+            )}
+            {file && !previewUrl && <Notice tone="info">선택한 파일: {file.name}</Notice>}
 
-              {previewUrl && (
-                <div className="upload-preview">
-                  <img src={previewUrl} alt="올릴 화면 미리보기" />
-                </div>
-              )}
-              {file && !previewUrl && (
-                <div className="alert alert-info">선택한 파일: {file.name}</div>
-              )}
+            <PrivacyNotice />
 
-              <PrivacyNotice />
+            <label className="consent-check">
+              <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} />
+              <span>개인정보 수집·이용에 동의합니다</span>
+            </label>
 
-              <label className="consent-check">
-                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} />
-                <span>개인정보 수집·이용에 동의합니다</span>
-              </label>
-
-              <button className="btn btn-primary btn-block" disabled={uploading || !agreed || !file}>
-                {uploading ? <><span className="spinner" /> 올리는 중...</> : '제출하기'}
-              </button>
-            </form>
-          </div>
+            <Button type="submit" block loading={uploading} disabled={!agreed || !file}>
+              {uploading ? '올리는 중...' : '제출하기'}
+            </Button>
+          </Card>
         </>
       )}
 
-      <div className="card">
-        <div className="card-title">제출 이력</div>
+      <Card title="제출 이력">
         {loading ? (
-          <div className="loading-box"><span className="spinner" /></div>
+          <LoadingBox />
         ) : records.length === 0 ? (
-          <div className="text-muted">제출 이력이 없습니다.</div>
+          <EmptyState title="제출 이력이 없습니다." compact />
         ) : (
           <ul className="history-list">
             {records.map(r => (
               <li key={r.id} className="history-item">
                 <div className="history-item-head">
-                  <span className={`badge ${statusBadgeClass(r.status)}`}>{statusLabel(r.status)}</span>
+                  <StatusBadge status={r.status} />
                   <span className="text-muted">{fmtDatetime(r.created_at)}</span>
                 </div>
                 {r.admin_note && <div className="history-item-note">{r.admin_note}</div>}
@@ -218,7 +201,7 @@ export default function VerificationPage() {
             ))}
           </ul>
         )}
-      </div>
+      </Card>
     </div>
   )
 }
