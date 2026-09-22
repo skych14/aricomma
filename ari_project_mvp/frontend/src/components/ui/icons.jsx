@@ -14,10 +14,12 @@ export {
   ChevronDown as IconExpand,         // ▼ 펼치기
   ChevronUp as IconCollapse,         // ▲ 접기
   CircleCheck as IconDone,           // ✅ 완료
+  DoorOpen as IconExit,              // 🚪 퇴실·예약 취소
   FileText as IconFile,              // 📄 PDF·첨부
   IdCard as IconVerify,              // 📋 학생 인증
   LayoutDashboard as IconDashboard,  // 🏠 대시보드
   LogOut as IconLogout,
+  Mail as IconMail,                  // ✉️ 민원 신고
   Mars as IconMale,                  // 🚹 남학우실
   PartyPopper as IconCelebrate,      // 🎉 체크인 완료
   Printer as IconPrint,              // 🖨️ 인쇄
@@ -25,6 +27,7 @@ export {
   Search as IconSearch,
   Siren as IconReport,               // 🚨 신고
   Trash2 as IconDelete,
+  UserRound as IconUser,             // 👤 프로필 아바타
   Users as IconUsers,
   Venus as IconFemale,               // 🚺 여학우실
 } from 'lucide-react'

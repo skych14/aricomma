@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { reportApi, seatApi } from '../../api/index.js'
 import {
   Button, Card, EmptyState, LoadingBox, Notice, PageTitle, StatusBadge, TextField,
 } from '../../components/ui/index.js'
+import { IconBack } from '../../components/ui/icons.jsx'
 import {
   REPORT_CATEGORIES, errMsg, fmtDatetime, fmtTime,
 } from '../../utils/helpers.js'
@@ -29,6 +31,7 @@ function kstToIso(dateKey, hhmm) {
 }
 
 export default function ReportPage() {
+  const navigate = useNavigate()
   const [seats, setSeats] = useState([])
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
@@ -92,6 +95,9 @@ export default function ReportPage() {
 
   return (
     <div>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/home')}>
+        <IconBack size={16} aria-hidden="true" /> 홈
+      </Button>
       <PageTitle>신고하기</PageTitle>
 
       {msg && <Notice tone="success">{msg}</Notice>}

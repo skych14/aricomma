@@ -211,6 +211,36 @@ a.ui-header-logo:hover { text-decoration: none; }
 .ui-menu-item-label { flex: 1; min-width: 0; }
 .ui-menu-item-chevron { display: inline-flex; flex-shrink: 0; color: var(--ink-muted); }
 
+/* ── HomeTile (홈 2×2 타일) ─────────────────────────────── */
+.ui-home-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2); width: 100%; min-height: 104px;
+  padding: var(--space-3) var(--space-2);
+  border: none; border-radius: var(--radius-tile);
+  background: var(--seat-available); color: var(--ink);
+  box-shadow: var(--shadow-pill);
+  font-family: var(--font-sans); text-align: center; cursor: pointer;
+  /* 한국어는 음절 단위로 끊기면 읽기 나빠서 어절 단위로 줄바꿈한다 */
+  word-break: keep-all;
+  transition: transform .1s, background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-home-tile:hover { background: var(--brand-soft); }
+.ui-home-tile:active { transform: scale(.98); }
+.ui-home-tile:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 2px; }
+.ui-home-tile-label { font-size: var(--fs-body); font-weight: 700; line-height: 1.3; }
+/* 켜진 타일의 안내 줄은 --ink — --ink-muted는 --seat-available 위에서 4.15:1뿐이다 */
+.ui-home-tile-note { font-size: var(--fs-label); line-height: 1.3; color: var(--ink); }
+
+/* 흐림 — 투명도가 아니라 색으로만. --ink-muted on --surface-page = 5.0:1 */
+.ui-home-tile.is-off {
+  background: var(--surface-page); color: var(--ink-muted);
+  box-shadow: none; cursor: not-allowed;
+}
+.ui-home-tile.is-off:hover { background: var(--surface-page); }
+.ui-home-tile.is-off:active { transform: none; }
+.ui-home-tile.is-off .ui-home-tile-note { color: var(--ink-muted); }
+
 /* ── SeatTile ───────────────────────────────────────────── */
 .ui-seat {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

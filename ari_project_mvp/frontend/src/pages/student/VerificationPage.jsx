@@ -4,7 +4,7 @@ import { verificationApi } from '../../api/index.js'
 import {
   Button, Card, EmptyState, LoadingBox, Notice, PageTitle, StatusBadge, TextField,
 } from '../../components/ui/index.js'
-import { IconCollapse, IconExpand } from '../../components/ui/icons.jsx'
+import { IconBack, IconCollapse, IconExpand } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { shrinkImage } from '../../utils/image.js'
 import { errMsg, fmtDatetime } from '../../utils/helpers.js'
@@ -121,6 +121,9 @@ export default function VerificationPage() {
 
   return (
     <div>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/home')}>
+        <IconBack size={16} aria-hidden="true" /> 홈
+      </Button>
       <PageTitle>학생 인증</PageTitle>
 
       {/* 상태 안내 — 이 화면의 주인공 */}

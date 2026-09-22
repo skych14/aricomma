@@ -41,7 +41,8 @@
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
   --space-gutter: 45px;        /* 로그인·더보기 카드 좌우 여백, 좁은 화면에선 --space-4까지 */
   /* 모서리 */
-  --radius-input: 7px; --radius-seat: 20px; --radius-card: 30px; --radius-pill: 999px;
+  --radius-input: 7px; --radius-tile: 14px; --radius-seat: 20px;
+  --radius-card: 30px; --radius-pill: 999px;
   /* 그림자 (주황빛만. 회색 그림자 금지) */
   --shadow-card: 0 4px 12.7px rgba(255,175,63,0.5);
   --shadow-pill: 0 4px 12.7px -2px rgba(255,149,0,0.5);

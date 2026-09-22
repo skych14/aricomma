@@ -44,13 +44,22 @@ a:hover { text-decoration: underline; }
 /* ── Layout ─────────────────────────────────────────────── */
 .app-layout { min-height: 100vh; display: flex; flex-direction: column; }
 
-/* 학생: 모바일 우선, 480px 중앙 정렬, 하단 탭바 여백 확보 */
+/* 학생: 모바일 우선, 480px 중앙 정렬 */
 .app-main {
   flex: 1;
   max-width: 480px;
   width: 100%;
   margin: 0 auto;
-  padding: 20px 16px calc(var(--bottom-nav-height) + 20px);
+  padding: 20px 16px 24px;
+}
+
+/* 홈·더보기: 상단 바 없이 화면 자체가 되는 곳 — 여백은 피그마의 45px */
+.app-main--bare {
+  display: flex; flex-direction: column;
+  padding: 24px var(--space-gutter) 24px;
+}
+@media (max-width: 360px) {
+  .app-main--bare { padding-left: var(--space-4); padding-right: var(--space-4); }
 }
 
 /* 관리자: 데스크톱 폭 유지, 하단 탭바 없음 */
@@ -142,9 +151,9 @@ tr:hover td { background: var(--surface-tint); }
 .plan-seat .ui-seat-number { font-size: clamp(14px, 6.2cqw, 30px); font-weight: 600; }
 .plan-seat .ui-seat-status { font-size: clamp(9px, 3.5cqw, 17px); }
 
-/* 선택한 좌석 예약 바 — 하단 탭바 위에 고정 */
+/* 선택한 좌석 예약 바 — 화면 아래에 고정 */
 .seat-action-bar {
-  position: sticky; bottom: calc(var(--bottom-nav-height) + 10px); z-index: 50;
+  position: sticky; bottom: 10px; z-index: 50;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: var(--surface); border: 2px solid var(--brand-strong); border-radius: var(--radius-card);
   padding: 10px 14px; margin-bottom: 14px; box-shadow: var(--shadow-pill);
@@ -182,6 +191,8 @@ tr:hover td { background: var(--surface-tint); }
 .status-card { background: var(--surface); border-radius: var(--radius-input); padding: 14px; box-shadow: var(--shadow-card); }
 .status-card .label { font-size: var(--fs-label); color: var(--ink-muted); }
 .status-card .value { font-size: var(--fs-title); font-weight: 700; color: var(--ink); margin-top: 2px; }
+/* 시각처럼 긴 값은 한 줄을 다 쓴다 (2칸 격자에 빈 칸이 남지 않게) */
+.status-card--wide { grid-column: 1 / -1; }
 
 /* ── Timer ──────────────────────────────────────────────── */
 .timer { font-size: 28px; font-weight: 700; color: var(--danger); font-variant-numeric: tabular-nums; }
@@ -559,3 +570,59 @@ tr:hover td { background: var(--surface-tint); }
   width: 78px; font-size: var(--fs-seat-status); color: var(--ink-muted); text-align: center;
 }
 .uikit-icon > svg { color: var(--ink); }
+
+/* ── 홈 화면 (피그마 "메인 화면") ────────────────────────── */
+.home-page, .more-page { flex: 1; display: flex; flex-direction: column; }
+
+/* (a) 프로필 줄 */
+.home-profile {
+  display: flex; align-items: center; gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.home-avatar {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--brand-soft); color: var(--ink-muted);
+}
+.home-profile-text { min-width: 0; }
+.home-greeting { font-size: var(--fs-title); color: var(--ink); line-height: 1.35; word-break: keep-all; }
+.home-greeting strong { color: var(--brand-text); font-weight: 700; }
+.home-student-id { margin-top: 2px; font-size: var(--fs-body-sm); color: var(--ink-muted); }
+.home-state {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.home-state-line { font-size: var(--fs-label); color: var(--ink-muted); word-break: keep-all; }
+.home-warning { font-size: var(--fs-label); font-weight: 700; color: var(--warning); }
+
+/* (b) 큰 흰 카드 */
+.home-card-lead {
+  font-size: var(--fs-body); color: var(--ink-muted); margin-bottom: var(--space-4);
+}
+.home-card-desc { font-size: var(--fs-body); color: var(--ink); line-height: 1.55; }
+.home-tiles {
+  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr;
+  gap: var(--space-3); margin-bottom: var(--space-4);
+}
+
+/* (c) 화면 맨 아래 문구 */
+.home-footer {
+  margin-top: auto; padding-top: var(--space-5);
+  font-size: var(--fs-body-sm); color: var(--brand-text); text-align: center;
+}
+
+/* ── 더보기 화면 (피그마 "더보기 화면") ──────────────────── */
+/* 세로 flex 안에서 버튼이 가로로 늘어나지 않게 */
+.more-back { align-self: flex-start; }
+.more-brand { text-align: center; margin: var(--space-4) 0 var(--space-5); }
+.more-brand img { margin: 0 auto; }
+.more-brand-name {
+  margin-top: var(--space-2);
+  font-size: var(--fs-logo); font-weight: 700; color: var(--ink); line-height: 1.2;
+}
+/* 메뉴 줄 안에서 오른쪽에 상태 배지를 붙일 때 */
+.more-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+}
+/* 로그아웃은 한 칸 띄우고 맨 아래 */
+.more-logout { margin-top: var(--space-5); }

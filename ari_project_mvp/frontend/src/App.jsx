@@ -8,7 +8,9 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
 import UiKitPage from './pages/admin/UiKitPage.jsx'
-import DashboardPage from './pages/student/DashboardPage.jsx'
+import HomePage from './pages/student/HomePage.jsx'
+import MorePage from './pages/student/MorePage.jsx'
+import MySeatPage from './pages/student/MySeatPage.jsx'
 import SeatsPage from './pages/student/SeatsPage.jsx'
 import ReportPage from './pages/student/ReportPage.jsx'
 import VerificationPage from './pages/student/VerificationPage.jsx'
@@ -25,7 +27,7 @@ function RootRedirect() {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
   if (user.role === 'admin') return <Navigate to="/admin" replace />
-  return <Navigate to="/seats" replace />
+  return <Navigate to="/home" replace />
 }
 
 export default function App() {
@@ -36,9 +38,17 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          <Route path="/dashboard" element={
-            <ProtectedRoute><Layout><DashboardPage /></Layout></ProtectedRoute>
+          <Route path="/home" element={
+            <ProtectedRoute><Layout bare><HomePage /></Layout></ProtectedRoute>
           } />
+          <Route path="/more" element={
+            <ProtectedRoute><Layout bare><MorePage /></Layout></ProtectedRoute>
+          } />
+          <Route path="/my-seat" element={
+            <ProtectedRoute><Layout><MySeatPage /></Layout></ProtectedRoute>
+          } />
+          {/* 옛 링크 대비 — 대시보드는 홈으로 합쳐졌다 */}
+          <Route path="/dashboard" element={<Navigate to="/home" replace />} />
           <Route path="/verify" element={
             <ProtectedRoute><Layout><VerificationPage /></Layout></ProtectedRoute>
           } />

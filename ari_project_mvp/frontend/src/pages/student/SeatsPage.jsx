@@ -5,7 +5,7 @@ import OperationBanner from '../../components/OperationBanner.jsx'
 import {
   Button, EmptyState, LoadingBox, Notice, PageTitle, SeatTile, Tabs,
 } from '../../components/ui/index.js'
-import { IconAccessible, IconFemale, IconMale } from '../../components/ui/icons.jsx'
+import { IconAccessible, IconBack, IconFemale, IconMale } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { fmtTime } from '../../utils/helpers.js'
 
@@ -255,6 +255,9 @@ export default function SeatsPage() {
 
   return (
     <div>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/home')}>
+        <IconBack size={16} aria-hidden="true" /> 홈
+      </Button>
       <PageTitle>좌석 현황</PageTitle>
 
       <OperationBanner op={op} />

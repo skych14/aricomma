@@ -19,7 +19,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const user = await login(form.email, form.password)
-      navigate(user.role === 'admin' ? '/admin' : '/seats')
+      navigate(user.role === 'admin' ? '/admin' : '/home')
     } catch (err) {
       setError(err.response?.data?.detail || '로그인에 실패했습니다')
     } finally {
