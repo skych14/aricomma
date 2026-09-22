@@ -14,8 +14,7 @@ from config import settings
 from database import SessionLocal
 from models.user import User
 from utils.auth import hash_password
-
-MIN_LENGTH = 8
+from utils.password_policy import password_error
 
 
 def run():
@@ -32,8 +31,10 @@ def run():
             return 1
 
         pw1 = getpass("새 비밀번호: ")
-        if len(pw1) < MIN_LENGTH:
-            print(f"오류: 비밀번호는 {MIN_LENGTH}자 이상이어야 합니다")
+        # 가입·변경 화면과 같은 규칙을 쓴다 (utils/password_policy.py)
+        error = password_error(pw1, user.student_id)
+        if error:
+            print(f"오류: {error}")
             return 1
         pw2 = getpass("새 비밀번호 확인: ")
         if pw1 != pw2:
@@ -41,9 +42,14 @@ def run():
             return 1
 
         user.hashed_password = hash_password(pw1)
+        # 다른 기기에 남아 있는 토큰을 끊는다
+        user.token_version = (user.token_version or 0) + 1
+        user.must_change_password = False
+        user.failed_login_count = 0
+        user.locked_until = None
         user.updated_at = datetime.utcnow()
         db.commit()
-        print(f"완료: {email} 비밀번호가 변경되었습니다")
+        print(f"완료: {email} 비밀번호가 변경되었습니다 (기존 로그인 세션은 모두 끊깁니다)")
         return 0
     finally:
         db.close()

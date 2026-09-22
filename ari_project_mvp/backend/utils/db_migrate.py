@@ -48,6 +48,15 @@ PENDING_COLUMNS = [
     ("reservations", "usage_ends_at", "DATETIME"),
     # 정지 해제 예정 시각(UTC). NULL이면 기한 없는(관리자 수동) 정지이거나 정지 아님.
     ("users", "suspended_until", "DATETIME"),
+    # 개인정보 동의 시각(UTC). 이 기능 이전에 가입한 계정은 NULL이다.
+    ("users", "privacy_agreed_at", "DATETIME"),
+    # 로그인 잠금 — NULL은 "아직 틀린 적 없음"(0)과 "잠기지 않음"으로 읽는다.
+    ("users", "failed_login_count", "INTEGER DEFAULT 0"),
+    ("users", "locked_until", "DATETIME"),
+    # 토큰 세대 — NULL은 0으로 읽는다.
+    ("users", "token_version", "INTEGER DEFAULT 0"),
+    # 임시 비밀번호 사용 중 여부 — NULL은 false로 읽는다.
+    ("users", "must_change_password", "BOOLEAN DEFAULT 0"),
 ]
 
 

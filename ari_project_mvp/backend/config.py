@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # 테스트 학생 계정(student@, student2@) 생성 여부. 운영 서버에서는 false 유지.
     seed_test_users: bool = False
 
+    # /docs, /redoc, /openapi.json 공개 여부. 운영 서버에서는 false 유지하고
+    # 로컬 .env에서만 ENABLE_DOCS=true로 켠다 (API 구조를 밖에 알리지 않기 위함).
+    enable_docs: bool = False
+
     admin_email: str = "admin@ari.ac.kr"
     admin_password: str = "admin1234"
     admin_name: str = "관리자"

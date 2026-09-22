@@ -7,21 +7,28 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from database import get_db
+from models.audit_log import AuditLog
 from models.reservation import Reservation
-from models.penalty import Penalty
-from models.report import Report
-from models.usage_log import UsageLog
 from models.user import User
-from models.verification import VerificationRequest
-from schemas.user import AdminUserResponse, AdminUserUpdate
+from schemas.user import (
+    AdminUserResponse,
+    AdminUserUpdate,
+    LoginEventResponse,
+    TempPasswordResponse,
+)
+from utils.account import purge_user
 from utils.audit import write_audit
-from utils.auth import get_current_admin
+from utils.auth import get_current_admin, hash_password
+from utils.password_policy import generate_temp_password
 from utils.penalty import counter_reset_at, penalty_counts
-from utils.upload_files import delete_upload
+from utils.rate_limit import client_ip
 
 router = APIRouter(prefix="/api/admin/users", tags=["admin-users"])
 
 STATUS_FILTERS = ("verified", "unverified", "suspended")
+# 사용자 화면의 "로그인 기록"에 보여줄 감사 로그 종류
+LOGIN_EVENT_TYPES = ("USER_LOGIN", "LOGIN_FAILED", "LOGIN_LOCKED")
+LOGIN_EVENT_LIMIT = 50
 
 
 @router.get("", response_model=List[AdminUserResponse])
@@ -45,9 +52,15 @@ def list_users(
 
     query = db.query(User)
     if q:
-        like = f"%{q.strip()}%"
+        term = q.strip()
+        like = f"%{term}%"
+        # 이메일은 전부 소문자로 저장하므로(schemas.normalize_email) 검색어도 낮춰서 맞춘다
         query = query.filter(
-            or_(User.name.like(like), User.student_id.like(like), User.email.like(like))
+            or_(
+                User.name.like(like),
+                User.student_id.like(like),
+                User.email.like(f"%{term.lower()}%"),
+            )
         )
     if status == "verified":
         query = query.filter(User.is_verified.is_(True))
@@ -71,6 +84,8 @@ def list_users(
             reservation_count=counts.get(u.id, 0),
             penalty_count=penalties.get(u.id, 0),
             suspended_until=u.suspended_until,
+            locked_until=u.locked_until,
+            must_change_password=bool(u.must_change_password),
         )
         for u in users
     ]
@@ -141,6 +156,8 @@ def update_user(
         reservation_count=count or 0,
         penalty_count=penalty_counts(db, [user.id], counter_reset_at(db)).get(user.id, 0),
         suspended_until=user.suspended_until,
+        locked_until=user.locked_until,
+        must_change_password=bool(user.must_change_password),
     )
 
 
@@ -168,34 +185,7 @@ def delete_user(
         raise HTTPException(status_code=400, detail="이용 중인 예약이 있어 삭제할 수 없습니다")
 
     snapshot = {"name": user.name, "student_id": user.student_id, "email": user.email}
-
-    verifications = (
-        db.query(VerificationRequest).filter(VerificationRequest.user_id == user.id).all()
-    )
-    for v in verifications:
-        delete_upload(v.file_path)
-        db.delete(v)
-
-    # 이 사용자가 올린 신고와 받은 패널티도 함께 지운다.
-    # 남이 올린 신고에 대상자로 잡혀 있던 건은 대상만 비우고 기록은 남긴다.
-    penalty_count_deleted = (
-        db.query(Penalty).filter(Penalty.user_id == user.id).delete(synchronize_session=False)
-    )
-    report_count_deleted = (
-        db.query(Report).filter(Report.reporter_id == user.id).delete(synchronize_session=False)
-    )
-    for r in db.query(Report).filter(Report.accused_user_id == user.id).all():
-        r.accused_user_id = None
-
-    usage_count = (
-        db.query(UsageLog).filter(UsageLog.user_id == user.id).delete(synchronize_session=False)
-    )
-    reservation_count = (
-        db.query(Reservation)
-        .filter(Reservation.user_id == user.id)
-        .delete(synchronize_session=False)
-    )
-    db.delete(user)
+    counts = purge_user(db, user)
     db.commit()
 
     write_audit(
@@ -204,22 +194,88 @@ def delete_user(
         actor_id=current_admin.id,
         target_type="user",
         target_id=user_id,
-        detail={
-            **snapshot,
-            "reservations_deleted": reservation_count,
-            "usage_logs_deleted": usage_count,
-            "verifications_deleted": len(verifications),
-            "reports_deleted": report_count_deleted,
-            "penalties_deleted": penalty_count_deleted,
-        },
-        ip_address=request.client.host if request.client else None,
+        detail={**snapshot, **counts},
+        ip_address=client_ip(request),
         commit=True,
     )
     return {
         "deleted": True,
         "student_id": snapshot["student_id"],
         "email": snapshot["email"],
-        "reservations_deleted": reservation_count,
-        "usage_logs_deleted": usage_count,
-        "verifications_deleted": len(verifications),
+        **counts,
     }
+
+
+@router.post("/{user_id}/temp-password", response_model=TempPasswordResponse)
+def issue_temp_password(
+    user_id: str,
+    request: Request,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """임시 비밀번호를 발급한다. 값은 이 응답에서 딱 한 번만 나가고 DB에는 해시만 남는다.
+
+    본인·다른 관리자는 대상이 될 수 없다(_get_target). 발급하면 기존 토큰이 모두
+    끊기고, 새 비밀번호로 바꾸기 전까지 다른 API는 막힌다.
+    """
+    user = _get_target(db, user_id, current_admin)
+
+    temp = generate_temp_password()
+    now = datetime.utcnow()
+    user.hashed_password = hash_password(temp)
+    user.must_change_password = True
+    user.token_version = (user.token_version or 0) + 1
+    # 잠겨 있었다면 함께 풀어준다 — 임시 비밀번호로 바로 들어올 수 있어야 하므로
+    user.failed_login_count = 0
+    user.locked_until = None
+    user.updated_at = now
+    db.commit()
+    db.refresh(user)
+
+    # 비밀번호 자체는 절대 기록하지 않는다
+    write_audit(
+        db,
+        action_type="USER_TEMP_PASSWORD",
+        actor_id=current_admin.id,
+        target_type="user",
+        target_id=user.id,
+        detail={"student_id": user.student_id},
+        ip_address=client_ip(request),
+        commit=True,
+    )
+    return TempPasswordResponse(
+        user_id=user.id, student_id=user.student_id, temp_password=temp
+    )
+
+
+@router.get("/{user_id}/login-events", response_model=List[LoginEventResponse])
+def login_events(
+    user_id: str,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """그 사용자의 최근 로그인 성공·실패·잠금 기록."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    rows = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.actor_id == user.id,
+            AuditLog.action_type.in_(LOGIN_EVENT_TYPES),
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(LOGIN_EVENT_LIMIT)
+        .all()
+    )
+    return [
+        LoginEventResponse(
+            id=r.id,
+            action_type=r.action_type,
+            ip_address=r.ip_address,
+            detail=r.detail,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
