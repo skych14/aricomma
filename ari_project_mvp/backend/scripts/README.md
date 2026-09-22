@@ -60,6 +60,9 @@ rm /data/ari_project.db
 # 업로드된 인증 파일도 함께 비울 때만 (계정이 사라지므로 보통 함께 지운다)
 rm -rf /data/uploads/*
 
+#시드파일 실행
+python seed.py
+
 exit
 ```
 

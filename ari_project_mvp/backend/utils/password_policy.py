@@ -33,7 +33,9 @@ def password_error(password: str, student_id: str | None = None) -> str | None:
         return f"비밀번호는 {MAX_LENGTH}자 이하로 입력하세요"
     if not any(c.isalpha() for c in password) or not any(c.isdigit() for c in password):
         return "영문과 숫자를 모두 넣어 주세요"
-    if student_id and student_id.strip() and student_id.strip() in password:
+    # 학번은 영문이 섞일 수 있으므로(2021E7312) 대소문자를 구분하지 않고 본다
+    sid = (student_id or "").strip().upper()
+    if sid and sid in password.upper():
         return "비밀번호에 학번을 넣을 수 없어요"
     return None
 

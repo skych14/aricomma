@@ -53,12 +53,12 @@ def list_users(
     query = db.query(User)
     if q:
         term = q.strip()
-        like = f"%{term}%"
-        # 이메일은 전부 소문자로 저장하므로(schemas.normalize_email) 검색어도 낮춰서 맞춘다
+        # 저장 형태에 맞춰 검색어를 바꾼다 — 이메일은 소문자, 학번은 대문자
+        # (schemas.normalize_email / normalize_student_id)
         query = query.filter(
             or_(
-                User.name.like(like),
-                User.student_id.like(like),
+                User.name.like(f"%{term}%"),
+                User.student_id.like(f"%{term.upper()}%"),
                 User.email.like(f"%{term.lower()}%"),
             )
         )

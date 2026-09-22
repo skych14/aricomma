@@ -9,6 +9,10 @@ import { IconExpand, IconCollapse } from '../components/ui/icons.jsx'
 import { errMsg } from '../utils/helpers.js'
 
 const STUDENT_ID_LENGTH = 9
+// 앞 4자리는 입학년도(숫자), 뒤 5자리는 숫자 또는 영문 대문자 — 백엔드와 같은 규칙
+// (backend/schemas/user.py STUDENT_ID_RE)
+const STUDENT_ID_RE = /^\d{4}[0-9A-Z]{5}$/
+const STUDENT_ID_ERROR = '학번은 9자리(숫자, 영문)로 입력하세요'
 const NAME_MIN = 2
 
 // 백엔드가 privacy_agreed_at에 남기는 동의의 실제 내용 (backend/routers/auth.py)
@@ -39,16 +43,23 @@ export default function RegisterPage() {
   const [done, setDone] = useState(false)
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value })
-  // 학번은 숫자 9자리 — 다른 글자는 입력 단계에서 털어내고 9자리에서 자른다.
-  // maxLength를 걸지 않는 이유: 브라우저가 먼저 잘라버리면 "학번 202100777"을
-  // 붙여넣었을 때 앞의 글자까지 9자에 포함돼 숫자가 사라진다.
+  // 학번은 숫자·영문 9자리 — 소문자는 대문자로 올리고 나머지 글자는 털어낸 뒤 9자리에서 자른다.
+  // maxLength를 걸지 않는 이유: 브라우저가 먼저 잘라버리면 "학번 2021E7312"를
+  // 붙여넣었을 때 앞의 글자까지 9자에 포함돼 뒷자리가 사라진다.
   const handleStudentId = (e) =>
-    setForm({ ...form, student_id: e.target.value.replace(/\D/g, '').slice(0, STUDENT_ID_LENGTH) })
+    setForm({
+      ...form,
+      student_id: e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, STUDENT_ID_LENGTH),
+    })
 
   const mismatch = confirm.length > 0 && confirm !== form.password
+  const studentIdOk = STUDENT_ID_RE.test(form.student_id)
+  // 다 치기 전부터 잔소리하지 않도록, 9자리를 채웠는데도 규칙에 안 맞을 때만 알린다
+  const studentIdError =
+    form.student_id.length >= STUDENT_ID_LENGTH && !studentIdOk ? STUDENT_ID_ERROR : ''
   const ready =
     form.name.trim().length >= NAME_MIN &&
-    form.student_id.length === STUDENT_ID_LENGTH &&
+    studentIdOk &&
     form.email.trim().length > 0 &&
     passwordOk(form.password, form.student_id) &&
     confirm === form.password &&
@@ -88,8 +99,9 @@ export default function RegisterPage() {
             placeholder="홍길동" autoComplete="name" required />
 
           <TextField label="학번" name="student_id" value={form.student_id}
-            onChange={handleStudentId} placeholder="202100001" hint="숫자 9자리"
-            inputMode="numeric" autoComplete="off" required />
+            onChange={handleStudentId} placeholder="202112345"
+            hint="예: 202112345 또는 2021E7312" error={studentIdError}
+            autoCapitalize="characters" autoComplete="off" required />
 
           <TextField label="이메일" type="email" name="email" value={form.email}
             onChange={handle} placeholder="example@anyang.ac.kr"

@@ -7,7 +7,9 @@ from pydantic import BaseModel, field_validator, model_validator
 
 from utils.password_policy import validate_password
 
-STUDENT_ID_RE = re.compile(r"^\d{9}$")
+# 학번 9자리 — 앞 4자리는 입학년도(숫자), 뒤 5자리는 숫자 또는 영문 대문자
+# (예: 202112345, 2021E7312)
+STUDENT_ID_RE = re.compile(r"^\d{4}[0-9A-Z]{5}$")
 NAME_RE = re.compile(r"^[가-힣a-zA-Z ]+$")
 NAME_MIN, NAME_MAX = 2, 20
 
@@ -24,9 +26,10 @@ def normalize_email(v: str) -> str:
 
 
 def normalize_student_id(v: str) -> str:
-    v = (v or "").strip()
+    """앞뒤 공백을 떼고 영문은 대문자로. 저장·비교 모두 이 형태를 쓴다."""
+    v = (v or "").strip().upper()
     if not STUDENT_ID_RE.match(v):
-        raise ValueError("학번은 숫자 9자리로 입력하세요")
+        raise ValueError("학번은 9자리(숫자, 영문)로 입력하세요")
     return v
 
 

@@ -11,7 +11,8 @@ export const PASSWORD_MIN = 10
 
 /** 각 줄의 충족 여부. studentId를 주면 "학번 미포함"까지 본다. */
 export function passwordChecks(password = '', studentId = '') {
-  const sid = (studentId || '').trim()
+  // 학번에 영문이 섞일 수 있어(2021E7312) 대소문자를 구분하지 않고 본다
+  const sid = (studentId || '').trim().toUpperCase()
   return [
     { key: 'length', label: `${PASSWORD_MIN}자 이상`, met: password.length >= PASSWORD_MIN },
     {
@@ -23,7 +24,7 @@ export function passwordChecks(password = '', studentId = '') {
       key: 'student',
       label: '학번 미포함',
       // 학번을 아직 안 적었으면 어길 방법이 없으므로 충족으로 본다
-      met: !sid || !password.includes(sid),
+      met: !sid || !password.toUpperCase().includes(sid),
     },
   ]
 }

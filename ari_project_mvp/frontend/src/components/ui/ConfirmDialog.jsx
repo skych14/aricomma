@@ -27,7 +27,9 @@ export default function ConfirmDialog({
   error, busy = false, onConfirm, onCancel,
 }) {
   const [typed, setTyped] = useState('')
-  const matched = !confirmWord || typed.trim() === confirmWord
+  // 학번처럼 영문이 섞인 값을 받으므로 대소문자는 구분하지 않는다
+  const matched =
+    !confirmWord || typed.trim().toUpperCase() === String(confirmWord).toUpperCase()
 
   return (
     <Modal

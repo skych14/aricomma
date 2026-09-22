@@ -256,7 +256,8 @@ def withdraw(
         record_failure(current_user, now)
         db.commit()
         raise HTTPException(status_code=400, detail="비밀번호가 올바르지 않습니다")
-    if (body.student_id or "").strip() != current_user.student_id:
+    # 저장된 학번은 대문자로 정규화돼 있으므로(schemas.normalize_student_id) 입력도 맞춘다
+    if (body.student_id or "").strip().upper() != current_user.student_id:
         raise HTTPException(status_code=400, detail="학번이 올바르지 않습니다")
 
     active = (

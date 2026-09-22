@@ -9,6 +9,9 @@ import { useAuth } from '../../contexts/AuthContext.jsx'
 import { errMsg } from '../../utils/helpers.js'
 
 const STUDENT_ID_LENGTH = 9
+// 가입 화면·백엔드와 같은 규칙 (backend/schemas/user.py STUDENT_ID_RE)
+const STUDENT_ID_RE = /^\d{4}[0-9A-Z]{5}$/
+const STUDENT_ID_ERROR = '학번은 9자리(숫자, 영문)로 입력하세요'
 
 export default function WithdrawPage() {
   const navigate = useNavigate()
@@ -19,7 +22,10 @@ export default function WithdrawPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const ready = password.length > 0 && studentId.length === STUDENT_ID_LENGTH
+  const studentIdOk = STUDENT_ID_RE.test(studentId)
+  const studentIdError =
+    studentId.length >= STUDENT_ID_LENGTH && !studentIdOk ? STUDENT_ID_ERROR : ''
+  const ready = password.length > 0 && studentIdOk
 
   const run = async () => {
     setBusy(true); setError('')
@@ -54,9 +60,12 @@ export default function WithdrawPage() {
             onChange={e => setPassword(e.target.value)}
             autoComplete="current-password" required />
           <TextField label="학번" name="student_id" value={studentId}
-            onChange={e => setStudentId(e.target.value.replace(/\D/g, '').slice(0, STUDENT_ID_LENGTH))}
-            placeholder={user?.student_id || '202100001'} hint="본인 확인을 위해 학번을 한 번 더 입력하세요"
-            inputMode="numeric" autoComplete="off" required />
+            onChange={e => setStudentId(
+              e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, STUDENT_ID_LENGTH)
+            )}
+            placeholder={user?.student_id || '202112345'}
+            hint="본인 확인을 위해 학번을 한 번 더 입력하세요" error={studentIdError}
+            autoCapitalize="characters" autoComplete="off" required />
           <Button type="submit" variant="danger" block disabled={!ready}>탈퇴하기</Button>
         </form>
       </Card>
