@@ -60,6 +60,15 @@ def counter_reset_at(db: Session) -> Optional[datetime]:
         return None
 
 
+def counts_toward_total(p: Penalty, reset_at: Optional[datetime]) -> bool:
+    """이 패널티가 지금 누적(이번 학기) 횟수에 들어가는지.
+
+    _active_query와 같은 기준을 건별로 본 것 — 초기화 시점이 없으면 전부,
+    있으면 그 뒤에 부과된 것만 센다. 철회 여부는 목록을 만들 때 이미 걸러진다.
+    """
+    return reset_at is None or p.created_at >= reset_at
+
+
 def recommended_level(count: int) -> str:
     """누적 횟수에 따른 권장 단계. 0회→경고, 1회→1주, 2회 이상→한 학기.
 

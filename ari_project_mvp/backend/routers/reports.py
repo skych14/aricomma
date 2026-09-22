@@ -4,7 +4,7 @@
 """
 import uuid
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -23,6 +23,8 @@ from utils.penalty import (
     CATEGORY_LABELS,
     LEVEL_LABELS,
     REPORT_STATUS_LABELS,
+    counter_reset_at,
+    counts_toward_total,
 )
 
 router = APIRouter(tags=["reports"])
@@ -50,7 +52,7 @@ def _to_mine(r: Report, seat: Seat) -> ReportMine:
     )
 
 
-def _to_penalty_mine(p: Penalty) -> PenaltyMine:
+def _to_penalty_mine(p: Penalty, reset_at: Optional[datetime] = None) -> PenaltyMine:
     return PenaltyMine(
         id=p.id,
         level=p.level,
@@ -60,6 +62,7 @@ def _to_penalty_mine(p: Penalty) -> PenaltyMine:
         ends_at=p.ends_at,
         acknowledged_at=p.acknowledged_at,
         created_at=p.created_at,
+        counts_toward_total=counts_toward_total(p, reset_at),
     )
 
 
@@ -192,7 +195,8 @@ def my_penalties(
         .limit(50)
         .all()
     )
-    return [_to_penalty_mine(p) for p in rows]
+    reset_at = counter_reset_at(db)
+    return [_to_penalty_mine(p, reset_at) for p in rows]
 
 
 @router.post("/api/penalties/{pid}/ack", response_model=PenaltyMine)
@@ -213,4 +217,4 @@ def acknowledge_penalty(
         p.acknowledged_at = datetime.utcnow()
         db.commit()
         db.refresh(p)
-    return _to_penalty_mine(p)
+    return _to_penalty_mine(p, counter_reset_at(db))

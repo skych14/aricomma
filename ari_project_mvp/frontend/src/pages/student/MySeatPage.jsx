@@ -6,6 +6,7 @@ import {
   Notice, PageTitle, StatusBadge,
 } from '../../components/ui/index.js'
 import { IconBack, IconQr } from '../../components/ui/icons.jsx'
+import { useAuth } from '../../contexts/AuthContext.jsx'
 import { errMsg, fmtDatetime, fmtTime, parseUTC } from '../../utils/helpers.js'
 
 // usage_ends_at 도입 전에 체크인된 예약을 위한 예전 계산 (백엔드 max_usage_seconds)
@@ -35,6 +36,7 @@ function StatusCell({ label, wide = false, children }) {
 }
 
 export default function MySeatPage() {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
@@ -109,7 +111,9 @@ export default function MySeatPage() {
           </p>
 
           <div className="flex gap-2 mt-4">
-            {isPending && (
+            {/* 정지 중에는 체크인을 서버가 403으로 막으므로 버튼을 내린다.
+                자리를 비우는 예약 취소·퇴실은 정지 중에도 그대로 쓸 수 있다. */}
+            {isPending && !user?.is_suspended && (
               <Button onClick={() => navigate(`/checkin/${active.id}`)}>
                 <IconQr size={18} aria-hidden="true" /> QR 체크인
               </Button>

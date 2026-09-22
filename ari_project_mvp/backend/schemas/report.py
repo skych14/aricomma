@@ -104,6 +104,9 @@ class PenaltyMine(BaseModel):
     ends_at: Optional[datetime] = None
     acknowledged_at: Optional[datetime] = None
     created_at: datetime
+    # 이번 학기 누적(관리자가 초기화한 시점 이후) 횟수에 들어가는 건인지.
+    # 화면에서 "경고 N회"를 셀 때 이 값이 true인 것만 센다.
+    counts_toward_total: bool = True
 
 
 class PenaltyAdmin(PenaltyMine):

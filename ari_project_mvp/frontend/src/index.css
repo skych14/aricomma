@@ -56,6 +56,8 @@ a:hover { text-decoration: underline; }
 /* 홈·더보기: 상단 바 없이 화면 자체가 되는 곳 — 여백은 피그마의 45px */
 .app-main--bare {
   display: flex; flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;          /* 모바일 주소창을 뺀 실제 높이 (지원하면) */
   padding: 24px var(--space-gutter) 24px;
 }
 @media (max-width: 360px) {
@@ -159,6 +161,7 @@ tr:hover td { background: var(--surface-tint); }
   padding: 10px 14px; margin-bottom: 14px; box-shadow: var(--shadow-pill);
 }
 .seat-action-info { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-body); font-weight: 700; }
+.seat-action-bar .ui-btn { flex-shrink: 0; }
 .seat-action-info span { font-size: var(--fs-label); font-weight: 500; color: var(--ink-muted); }
 .section-title { font-size: var(--fs-title); font-weight: 700; color: var(--ink); margin-bottom: 10px; }
 /* 안내 문장 */
@@ -572,7 +575,13 @@ tr:hover td { background: var(--surface-tint); }
 .uikit-icon > svg { color: var(--ink); }
 
 /* ── 홈 화면 (피그마 "메인 화면") ────────────────────────── */
-.home-page, .more-page { flex: 1; display: flex; flex-direction: column; }
+/* 로그인(.auth-wrap)처럼 화면 가운데. 다만 align-items:center는 내용이 화면보다
+   길어지면 위가 잘려 보이지 않으므로, 남는 자리를 위아래로 나눠 갖는
+   margin:auto를 쓴다 — 자리가 모자라면 auto가 0이 되어 위에서부터 스크롤된다. */
+.home-center {
+  width: 100%; max-width: 400px; margin: auto;
+}
+.more-page { flex: 1; display: flex; flex-direction: column; }
 
 /* (a) 프로필 줄 */
 .home-profile {
@@ -599,17 +608,23 @@ tr:hover td { background: var(--surface-tint); }
 .home-card-lead {
   font-size: var(--fs-body); color: var(--ink-muted); margin-bottom: var(--space-4);
 }
-.home-card-desc { font-size: var(--fs-body); color: var(--ink); line-height: 1.55; }
+.home-card-desc { font-size: var(--fs-body); color: var(--ink); line-height: 1.55; word-break: keep-all; }
+/* 미인증 카드 제목·안내 Notice 등 홈의 한글 문장 */
+.home-center .ui-card-title, .home-center .ui-notice { word-break: keep-all; }
 .home-tiles {
   display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr;
   gap: var(--space-3); margin-bottom: var(--space-4);
 }
 
-/* (c) 화면 맨 아래 문구 */
+/* (c) 화면 맨 아래 문구 — 가운데 묶음의 형제라서 묶음과 겹치지 않고,
+   내용이 길어지면 묶음 아래로 자연스럽게 밀려난다 */
 .home-footer {
-  margin-top: auto; padding-top: var(--space-5);
+  width: 100%; max-width: 400px; margin-left: auto; margin-right: auto;
+  padding-top: var(--space-5);
   font-size: var(--fs-body-sm); color: var(--brand-text); text-align: center;
 }
+/* 더보기 화면은 지금처럼 위에서부터 — 문구만 아래에 붙인다 */
+.more-page .home-footer { margin-top: auto; }
 
 /* ── 더보기 화면 (피그마 "더보기 화면") ──────────────────── */
 /* 세로 flex 안에서 버튼이 가로로 늘어나지 않게 */

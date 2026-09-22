@@ -96,8 +96,9 @@ export default function HomePage() {
   const suspended = !!user?.is_suspended || !!liveSuspension
   const suspendedUntil = user?.suspended_until || liveSuspension?.ends_at
 
-  // 경고 횟수 — /api/penalties/me는 이미 철회된 건을 빼고 내려준다
-  const warnings = penalties.length
+  // 경고 횟수 — 철회된 건은 서버가 이미 빼고 내려주고, 여기서 이번 학기
+  // (관리자가 누적을 초기화한 시점 이후) 건만 센다
+  const warnings = penalties.filter(p => p.counts_toward_total !== false).length
 
   const closed = !!op && !op.is_open_now
 
@@ -114,29 +115,31 @@ export default function HomePage() {
 
   if (!verified) {
     return (
-      <div className="home-page">
-        <ProfileRow user={user} statusLine="현재 이용중인 좌석 없음" warnings={warnings} />
+      <>
+        <div className="home-center">
+          <ProfileRow user={user} statusLine="현재 이용중인 좌석 없음" warnings={warnings} />
 
-        {rejected ? (
-          <Notice
-            tone="danger" lg title="인증이 거절되었어요"
-            action={<Button block onClick={() => navigate('/verify')}>다시 제출하기</Button>}
-          >
-            사유: {latestRecord?.admin_note || '사유가 기록되지 않았습니다'}
-          </Notice>
-        ) : (
-          <Card elevated title={reviewing ? '인증 확인 중이에요' : '아직 재학생 인증이 되지 않았어요'}>
-            {reviewing ? (
-              <p className="home-card-desc">관리자가 확인하면 바로 이용할 수 있어요.</p>
-            ) : (
-              <Button block onClick={() => navigate('/verify')}>학생 인증하기</Button>
-            )}
-          </Card>
-        )}
+          {rejected ? (
+            <Notice
+              tone="danger" lg title="인증이 거절되었어요"
+              action={<Button block onClick={() => navigate('/verify')}>다시 제출하기</Button>}
+            >
+              사유: {latestRecord?.admin_note || '사유가 기록되지 않았습니다'}
+            </Notice>
+          ) : (
+            <Card elevated title={reviewing ? '인증 확인 중이에요' : '아직 재학생 인증이 되지 않았어요'}>
+              {reviewing ? (
+                <p className="home-card-desc">관리자가 확인하면 바로 이용할 수 있어요.</p>
+              ) : (
+                <Button block onClick={() => navigate('/verify')}>학생 인증하기</Button>
+              )}
+            </Card>
+          )}
 
-        {moreButton}
+          {moreButton}
+        </div>
         {footer}
-      </div>
+      </>
     )
   }
 
@@ -165,9 +168,8 @@ export default function HomePage() {
         ? { disabled: true, note: '이미 체크인했어요' }
         : { disabled: true, note: '예약 후 사용할 수 있어요' }
 
-  const exitTile = suspended
-    ? { disabled: true, note: '이용 정지 중', label: '퇴실·예약 취소' }
-    : isPending
+  // 정지 중에도 쓰던 자리를 비우는 건 막지 않는다 (서버도 취소·퇴실은 허용)
+  const exitTile = isPending
       ? { label: '예약 취소', to: '/my-seat' }
       : isUsing
         ? { label: '퇴실', to: '/my-seat' }
@@ -183,58 +185,60 @@ export default function HomePage() {
   }
 
   return (
-    <div className="home-page">
-      <ProfileRow user={user} statusLine={statusLine} warnings={warnings} />
+    <>
+      <div className="home-center">
+        <ProfileRow user={user} statusLine={statusLine} warnings={warnings} />
 
-      {flash && <Notice tone="success">{flash}</Notice>}
+        {flash && <Notice tone="success">{flash}</Notice>}
 
-      {suspended && (
-        <Notice tone="danger" title={
-          suspendedUntil
-            ? `${fmtDate(suspendedUntil)}까지 이용이 정지되었어요`
-            : '이용이 정지되었어요'
-        } />
-      )}
+        {suspended && (
+          <Notice tone="danger" title={
+            suspendedUntil
+              ? `${fmtDate(suspendedUntil)}까지 이용이 정지되었어요`
+              : '이용이 정지되었어요'
+          } />
+        )}
 
-      <PenaltyNotice hideSuspension={suspended} />
+        <PenaltyNotice hideSuspension={suspended} />
 
-      {showExpired && (
-        <Notice
-          tone="neutral"
-          title="예약 시간 10분이 지나 예약이 취소됐어요"
-          action={<Button variant="secondary" size="sm" onClick={dismissExpired}>확인</Button>}
-        />
-      )}
-
-      <Card elevated>
-        <p className="home-card-lead">무엇을 도와드릴까요?</p>
-
-        <div className="home-tiles">
-          <HomeTile
-            icon={IconSeat} label={seatTile.label} note={seatTile.note}
-            disabled={seatTile.disabled}
-            onClick={() => navigate(seatTile.to)}
+        {showExpired && (
+          <Notice
+            tone="neutral"
+            title="예약 시간 10분이 지나 예약이 취소됐어요"
+            action={<Button variant="secondary" size="sm" onClick={dismissExpired}>확인</Button>}
           />
-          <HomeTile
-            icon={IconQr} label="QR 체크인" note={qrTile.note}
-            disabled={qrTile.disabled}
-            onClick={() => navigate(qrTile.to)}
-          />
-          <HomeTile
-            icon={IconExit} label={exitTile.label} note={exitTile.note}
-            disabled={exitTile.disabled}
-            onClick={() => navigate(exitTile.to)}
-          />
-          <HomeTile
-            icon={IconMail} label="민원 신고"
-            onClick={() => navigate('/report')}
-          />
-        </div>
+        )}
 
-        {moreButton}
-      </Card>
+        <Card elevated>
+          <p className="home-card-lead">무엇을 도와드릴까요?</p>
+
+          <div className="home-tiles">
+            <HomeTile
+              icon={IconSeat} label={seatTile.label} note={seatTile.note}
+              disabled={seatTile.disabled}
+              onClick={() => navigate(seatTile.to)}
+            />
+            <HomeTile
+              icon={IconQr} label="QR 체크인" note={qrTile.note}
+              disabled={qrTile.disabled}
+              onClick={() => navigate(qrTile.to)}
+            />
+            <HomeTile
+              icon={IconExit} label={exitTile.label} note={exitTile.note}
+              disabled={exitTile.disabled}
+              onClick={() => navigate(exitTile.to)}
+            />
+            <HomeTile
+              icon={IconMail} label="민원 신고"
+              onClick={() => navigate('/report')}
+            />
+          </div>
+
+          {moreButton}
+        </Card>
+      </div>
 
       {footer}
-    </div>
+    </>
   )
 }

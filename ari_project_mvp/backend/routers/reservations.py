@@ -194,11 +194,14 @@ def checkin(
     rid: str,
     body: CheckinRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_student),
     db: Session = Depends(get_db),
 ):
     """
     현장 침대에 부착된 QR을 카메라로 스캔해 얻은 qr_token으로 체크인.
+
+    정지 중이면 여기서 403으로 막는다(get_active_student). 이미 쓰고 있는 자리를
+    비우는 일은 막을 이유가 없으므로 예약 취소·퇴실은 정지 중에도 그대로 둔다.
     """
     # 만료 보정 먼저
     expire_pending_reservations(db)

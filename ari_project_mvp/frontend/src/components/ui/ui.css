@@ -9,7 +9,8 @@
   min-height: var(--control-height); padding: 0 18px;
   border-radius: var(--radius-input); border: 1px solid transparent;
   font-family: var(--font-sans); font-size: var(--fs-body); font-weight: 700;
-  line-height: 1.2; cursor: pointer; transition: background .15s, border-color .15s;
+  line-height: 1.2; white-space: nowrap; cursor: pointer;
+  transition: background .15s, border-color .15s;
   -webkit-tap-highlight-color: transparent;
 }
 .ui-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -214,7 +215,10 @@ a.ui-header-logo:hover { text-decoration: none; }
 /* ── HomeTile (홈 2×2 타일) ─────────────────────────────── */
 .ui-home-tile {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: var(--space-2); width: 100%; min-height: 104px;
+  /* 아이콘 40 + 글자 한 줄 + 이유 두 줄이 다 들어가는 높이로 고정한다.
+     (이유가 두 줄인 상태에서 실제로 필요한 높이가 129.4px이라 넉넉히 132px)
+     상태가 바뀌어도 타일 크기와 카드 높이가 흔들리지 않게 하려는 것. */
+  gap: var(--space-2); width: 100%; min-height: 132px;
   padding: var(--space-3) var(--space-2);
   border: none; border-radius: var(--radius-tile);
   background: var(--seat-available); color: var(--ink);
