@@ -81,21 +81,11 @@ td { padding: 10px 10px; border-bottom: 1px solid var(--line); }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--surface-tint); }
 
-.seat-legend {
-  display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px;
-  font-size: var(--fs-label); color: var(--ink-muted);
+/* 학우실·방 고르는 단계 — 홈 타일과 같은 2칸 묶음 */
+.seat-choices {
+  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr;
+  gap: var(--space-3); margin-bottom: var(--space-4);
 }
-.seat-legend > span { display: inline-flex; align-items: center; gap: 5px; }
-.seat-legend-swatch {
-  display: inline-block; width: 18px; height: 13px; border-radius: 4px;
-  border: 1px solid var(--line); background: var(--seat-unavailable);
-}
-.seat-legend-swatch.is-available { background: var(--seat-available); }
-.seat-legend-swatch.is-unavailable {
-  background: repeating-linear-gradient(135deg,
-    var(--line) 0 1px, var(--seat-unavailable) 1px 5px);
-}
-.seat-legend-swatch.is-selected { background: var(--surface); border: 3px solid var(--seat-selected); }
 
 .seat-map {
   background: var(--surface); border-radius: var(--radius-card); padding: 22px 14px 18px;
@@ -107,19 +97,21 @@ tr:hover td { background: var(--surface-tint); }
 }
 /* 선택은 색이 아니라 테두리 두께(3px)로 구분한다 */
 
-/* 일반방: 2층 침대 한 쌍 — 2층(위·왼쪽), 1층(아래·오른쪽), 사이 왼쪽에 사다리 */
+/* 일반방: 2층 침대 한 쌍 — 2층(위), 1층(아래)을 한 줄로 세로로 쌓는다.
+   같은 침대라는 게 보이게 두 칸의 왼쪽 끝을 정확히 맞추고, 사다리는 사이 가운데. */
 /* 크기는 SeatTile의 토큰 값(--seat-width 95 × --seat-height 66)을 그대로 쓰고,
-   컨테이너는 그 위에서 계산한다: 폭 95+18(엇갈린 정도), 높이 66+14(사이 간격)+66 */
+   컨테이너는 그 위에서 계산한다: 폭 95, 높이 66+14(사이 간격)+66 */
 .bunk-pair {
   position: relative;
-  width: calc(var(--seat-width) + 18px);
+  width: var(--seat-width);
   height: calc(var(--seat-height) * 2 + 14px);
 }
 .bunk-pair .ui-seat { position: absolute; }
 .bunk-pair-upper { left: 0; top: 0; }
-.bunk-pair-lower { left: 18px; top: calc(var(--seat-height) + 14px); }
+.bunk-pair-lower { left: 0; top: calc(var(--seat-height) + 14px); }
+/* 두 칸 사이 14px 틈 안에 들어가는 크기 (viewBox 비율은 그대로라 6×14로 그려진다) */
 .bunk-pair-ladder {
-  position: absolute; left: 4px; top: calc(var(--seat-height) - 8px); width: 12px; height: 28px;
+  position: absolute; left: calc(50% - 7px); top: var(--seat-height); width: 14px; height: 14px;
   fill: var(--ink); z-index: 1; pointer-events: none;
 }
 
@@ -147,11 +139,14 @@ tr:hover td { background: var(--surface-tint); }
 .plan-room-floor { font-size: 22px; fill: var(--ink-muted); }
 .plan-room-entrance { font-size: 38px; fill: var(--ink-muted); }
 .plan-room-entrance-bar { fill: var(--brand); }
-.plan-room .plan-seat { position: absolute; border-color: transparent; border-radius: 4px; }
+/* 글자 크기는 일반방과 같은 토큰 값(--fs-seat-number 700 / --fs-seat-status)을
+   그대로 쓴다 — 칸이 커도 키우지 않는다. 안쪽 여백만 좁은 화면에 맞춰 줄인다. */
+.plan-room .plan-seat {
+  position: absolute; padding: 2px;
+  border-color: transparent; border-radius: 4px;
+}
 .plan-room .plan-seat.ui-seat--unavailable { border-color: var(--line); }
 .plan-room .plan-seat.ui-seat--selected { border-color: var(--seat-selected); }
-.plan-seat .ui-seat-number { font-size: clamp(14px, 6.2cqw, 30px); font-weight: 600; }
-.plan-seat .ui-seat-status { font-size: clamp(9px, 3.5cqw, 17px); }
 
 /* 선택한 좌석 예약 바 — 화면 아래에 고정 */
 .seat-action-bar {
@@ -512,9 +507,6 @@ tr:hover td { background: var(--surface-tint); }
 /* 신고: 시작~종료 시각 두 칸 */
 .time-range { display: flex; align-items: center; gap: var(--space-2); }
 .time-range .ui-field { flex: 1; min-width: 0; }
-
-/* 좌석 범례의 배려석 아이콘 */
-.seat-legend-accessible { color: var(--brand-strong); vertical-align: -2px; }
 
 /* 체크인 화면 */
 .checkin-head {

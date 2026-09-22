@@ -103,7 +103,7 @@ def create_seat(
         .filter(Seat.seat_number == body.seat_number, Seat.location == body.location)
         .first()
     ):
-        raise HTTPException(status_code=400, detail="같은 방에 이미 존재하는 좌석 번호입니다")
+        raise HTTPException(status_code=400, detail="같은 방에 이미 존재하는 자리 번호입니다")
 
     seat = Seat(
         id=str(uuid.uuid4()),
@@ -204,7 +204,7 @@ def rotate_qr(
     """좌석 1개의 QR 토큰을 새로 발급. qr_token 외에는 아무것도 바꾸지 않는다."""
     seat = db.query(Seat).filter(Seat.id == seat_id).first()
     if not seat:
-        raise HTTPException(status_code=404, detail="좌석을 찾을 수 없습니다")
+        raise HTTPException(status_code=404, detail="자리를 찾을 수 없습니다")
 
     seat.qr_token = str(uuid.uuid4())
     db.commit()
@@ -233,7 +233,7 @@ def update_seat(
 ):
     seat = db.query(Seat).filter(Seat.id == seat_id).first()
     if not seat:
-        raise HTTPException(status_code=404, detail="좌석을 찾을 수 없습니다")
+        raise HTTPException(status_code=404, detail="자리를 찾을 수 없습니다")
 
     new_number = body.seat_number if body.seat_number is not None else seat.seat_number
     new_location = body.location if body.location is not None else seat.location
@@ -242,7 +242,7 @@ def update_seat(
         .filter(Seat.seat_number == new_number, Seat.location == new_location, Seat.id != seat.id)
         .first()
     ):
-        raise HTTPException(status_code=400, detail="같은 방에 이미 존재하는 좌석 번호입니다")
+        raise HTTPException(status_code=400, detail="같은 방에 이미 존재하는 자리 번호입니다")
 
     if body.seat_number is not None:
         seat.seat_number = body.seat_number
@@ -295,7 +295,7 @@ def delete_seat(
 ):
     seat = db.query(Seat).filter(Seat.id == seat_id).first()
     if not seat:
-        raise HTTPException(status_code=404, detail="좌석을 찾을 수 없습니다")
+        raise HTTPException(status_code=404, detail="자리를 찾을 수 없습니다")
 
     active = (
         db.query(Reservation)
@@ -306,7 +306,7 @@ def delete_seat(
         .first()
     )
     if active:
-        raise HTTPException(status_code=400, detail="현재 이용 중인 좌석은 삭제할 수 없습니다")
+        raise HTTPException(status_code=400, detail="현재 이용 중인 자리는 삭제할 수 없습니다")
 
     write_audit(
         db,

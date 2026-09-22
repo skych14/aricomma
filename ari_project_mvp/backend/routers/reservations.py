@@ -18,7 +18,12 @@ from schemas.reservation import (
     ReservationResponse,
 )
 from utils.audit import write_audit
-from utils.auth import get_active_student, get_current_admin, get_current_user
+from utils.auth import (
+    get_active_student,
+    get_checkin_student,
+    get_current_admin,
+    get_current_user,
+)
 from utils.expiry import expire_pending_reservations
 from utils.operation import (
     CLOSED_MESSAGE,
@@ -69,7 +74,7 @@ def create_reservation(
     # 좌석 존재 확인
     seat = db.query(Seat).filter(Seat.id == body.seat_id, Seat.is_active == True).first()
     if not seat:
-        raise HTTPException(status_code=404, detail="좌석을 찾을 수 없습니다")
+        raise HTTPException(status_code=404, detail="자리를 찾을 수 없습니다")
 
     # 본인 활성 예약 확인 (1인 1좌석)
     my_active = (
@@ -96,7 +101,7 @@ def create_reservation(
         .first()
     )
     if seat_active:
-        raise HTTPException(status_code=409, detail="이미 예약 중이거나 사용 중인 좌석입니다")
+        raise HTTPException(status_code=409, detail="이미 예약 중이거나 사용 중인 자리입니다")
 
     expiry = timedelta(seconds=settings.reservation_expiry_seconds)
     reservation = Reservation(
@@ -194,13 +199,13 @@ def checkin(
     rid: str,
     body: CheckinRequest,
     request: Request,
-    current_user: User = Depends(get_active_student),
+    current_user: User = Depends(get_checkin_student),
     db: Session = Depends(get_db),
 ):
     """
     현장 침대에 부착된 QR을 카메라로 스캔해 얻은 qr_token으로 체크인.
 
-    정지 중이면 여기서 403으로 막는다(get_active_student). 이미 쓰고 있는 자리를
+    정지 중이면 여기서 403으로 막는다(get_checkin_student). 이미 쓰고 있는 자리를
     비우는 일은 막을 이유가 없으므로 예약 취소·퇴실은 정지 중에도 그대로 둔다.
     """
     # 만료 보정 먼저
@@ -236,7 +241,7 @@ def checkin(
     if not seat or seat.qr_token != body.qr_token:
         raise HTTPException(
             status_code=400,
-            detail="예약하신 좌석의 QR이 아닙니다. 본인 좌석을 확인해 주세요",
+            detail="예약하신 자리의 QR이 아닙니다. 본인 자리를 확인해 주세요",
         )
 
     now = datetime.utcnow()

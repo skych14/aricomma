@@ -275,7 +275,7 @@ function SeatsTab() {
     setError(''); setMsg('')
     try {
       await seatApi.create(form)
-      setMsg('좌석이 추가되었습니다')
+      setMsg('자리가 추가되었습니다')
       setForm(EMPTY_SEAT)
       load()
     } catch (e) { setError(errMsg(e)) }
@@ -298,8 +298,8 @@ function SeatsTab() {
       {msg && <Notice tone="success">{msg}</Notice>}
       {error && <Notice tone="danger">{error}</Notice>}
 
-      <Card as="form" title="좌석 추가" className="seat-form" onSubmit={handleCreate}>
-        <TextField inline className="seat-form-num" aria-label="좌석 번호"
+      <Card as="form" title="자리 추가" className="seat-form" onSubmit={handleCreate}>
+        <TextField inline className="seat-form-num" aria-label="자리 번호"
           placeholder="번호 (A1-1)" value={form.seat_number}
           onChange={e => setForm({ ...form, seat_number: e.target.value })} required />
         <span className="seat-form-type"><IconSeat size={ICON} aria-hidden="true" /> 침대</span>
@@ -366,8 +366,8 @@ function SeatsTab() {
 
       {deleting && (
         <ConfirmDialog
-          title="좌석을 삭제할까요?"
-          description={`${deleting.seat_number} 좌석을 삭제합니다. 되돌릴 수 없습니다.`}
+          title="자리를 삭제할까요?"
+          description={`${deleting.seat_number} 자리를 삭제합니다. 되돌릴 수 없습니다.`}
           confirmLabel="삭제"
           tone="danger"
           onConfirm={handleDelete}
@@ -412,7 +412,7 @@ function ReservationsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>학생</th><th>학번</th><th>좌석</th><th>예약 시간</th><th>상태</th><th>체크인</th><th>종료 예정</th><th>퇴실</th></tr>
+              <tr><th>학생</th><th>학번</th><th>자리</th><th>예약 시간</th><th>상태</th><th>체크인</th><th>종료 예정</th><th>퇴실</th></tr>
             </thead>
             <tbody>
               {reservations.map(r => (
@@ -437,7 +437,7 @@ function ReservationsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>시간</th><th>학생</th><th>좌석</th><th>행동</th><th>메모</th></tr>
+              <tr><th>시간</th><th>학생</th><th>자리</th><th>행동</th><th>메모</th></tr>
             </thead>
             <tbody>
               {logs.map(l => (
@@ -573,7 +573,7 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
       <div className="report-detail">
         <div className="report-detail-row"><span>유형</span><strong>{report.category_label}</strong></div>
         <div className="report-detail-row">
-          <span>좌석</span><strong>{report.location} {report.seat_number}</strong>
+          <span>자리</span><strong>{report.location} {report.seat_number}</strong>
         </div>
         <div className="report-detail-row">
           <span>시간대</span><strong>{fmtTime(report.occurred_from)}~{fmtTime(report.occurred_to)}</strong>
@@ -590,7 +590,7 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
         <LoadingBox />
       ) : candidates.length === 0 ? (
         <Notice tone="warning">
-          그 시간대에 이 좌석을 이용한 기록이 없습니다. 대상 확인 불가로 종결할 수 있어요.
+          그 시간대에 이 자리를 이용한 기록이 없습니다. 대상 확인 불가로 종결할 수 있어요.
         </Notice>
       ) : (
         <ul className="candidate-list">
@@ -985,7 +985,7 @@ export default function AdminDashboard() {
     { key: 'verifications', label: '인증', badge: pendingCount },
     { key: 'reports', label: '신고', badge: pendingReports },
     { key: 'users', label: '사용자' },
-    { key: 'seats', label: '좌석 관리' },
+    { key: 'seats', label: '자리 관리' },
     { key: 'reservations', label: '예약/이용 로그' },
     { key: 'audit', label: '감사 로그' },
   ]

@@ -8,7 +8,8 @@ export {
   AlarmClock as IconExpired,         // ⏰ 만료된 예약
   ArrowLeft as IconBack,             // ← 뒤로
   ArrowRight as IconGo,              // → 이어서 하기
-  BedDouble as IconSeat,             // 🛏️ 좌석·침대
+  BedDouble as IconSeat,             // 🛏️ 자리·침대
+  BedDouble as IconRoom,             // 🛏️ 일반방
   CameraOff as IconCameraOff,        // 📷 카메라를 쓸 수 없음
   Check as IconCheck,                // ✓ 스캔 성공
   ChevronDown as IconExpand,         // ▼ 펼치기
@@ -26,6 +27,7 @@ export {
   QrCode as IconQr,                  // QR 체크인
   Search as IconSearch,
   Siren as IconReport,               // 🚨 신고
+  Tent as IconRoomCave,              // ⛺ 굴방
   Trash2 as IconDelete,
   UserRound as IconUser,             // 👤 프로필 아바타
   Users as IconUsers,

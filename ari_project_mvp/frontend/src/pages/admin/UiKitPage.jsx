@@ -111,7 +111,7 @@ export default function UiKitPage() {
         </div>
       </Section>
 
-      <Section title="StatusBadge" note="예약·인증·신고·좌석 상태를 한 곳에서 매핑">
+      <Section title="StatusBadge" note="예약·인증·신고·자리 상태를 한 곳에서 매핑">
         {BADGES.map(s => <StatusBadge key={s} status={s} />)}
         <StatusBadge tone="brand" label="관리자" />
         <StatusBadge tone="neutral" label="직전 이용" />
@@ -127,7 +127,7 @@ export default function UiKitPage() {
               { key: 'a', label: '인증', badge: 3 },
               { key: 'b', label: '신고', badge: 12 },
               { key: 'c', label: '사용자' },
-              { key: 'd', label: '좌석 관리' },
+              { key: 'd', label: '자리 관리' },
             ]}
           />
           <Tabs
@@ -163,7 +163,7 @@ export default function UiKitPage() {
           <EmptyState icon={<Icons.IconSeat size={28} />} title="예약 내역이 없습니다." />
           <EmptyState title="내역 없음" compact />
           <EmptyState title="현재 활성 예약이 없습니다."
-            action={<Button>좌석 예약하기</Button>} />
+            action={<Button>자리 예약하기</Button>} />
         </div>
       </Section>
 
@@ -193,7 +193,7 @@ export default function UiKitPage() {
       {dialog === 'plain' && (
         <ConfirmDialog
           title="예약을 취소할까요?"
-          description="A1-1 좌석 예약이 취소됩니다. 다시 예약하려면 좌석 화면에서 새로 골라야 해요."
+          description="A1-1 자리 예약이 취소됩니다. 다시 예약하려면 자리 화면에서 새로 골라야 해요."
           confirmLabel="예약 취소"
           tone="danger"
           onConfirm={() => setDialog('')}

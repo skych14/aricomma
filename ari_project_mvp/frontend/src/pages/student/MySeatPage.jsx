@@ -84,7 +84,7 @@ export default function MySeatPage() {
       <Button variant="ghost" size="sm" onClick={() => navigate('/home')}>
         <IconBack size={16} aria-hidden="true" /> 홈
       </Button>
-      <PageTitle>내 좌석</PageTitle>
+      <PageTitle>내 자리</PageTitle>
 
       {error && <Notice tone="danger">{error}</Notice>}
 
@@ -93,7 +93,7 @@ export default function MySeatPage() {
       ) : active ? (
         <Card elevated>
           <div className="status-row">
-            <StatusCell label="좌석">{active.seat_number || '—'}</StatusCell>
+            <StatusCell label="자리">{active.seat_number || '—'}</StatusCell>
             <StatusCell label="상태"><StatusBadge status={active.status} /></StatusCell>
             {isPending ? (
               <StatusCell label="체크인 마감" wide>
@@ -126,8 +126,8 @@ export default function MySeatPage() {
       ) : (
         <Card elevated>
           <EmptyState
-            title="이용 중인 좌석이 없어요"
-            action={<Button onClick={() => navigate('/seats')}>좌석 예약하기</Button>}
+            title="이용 중인 자리가 없어요"
+            action={<Button onClick={() => navigate('/seats')}>자리 예약하기</Button>}
           />
         </Card>
       )}
@@ -141,7 +141,7 @@ export default function MySeatPage() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>좌석</th><th>예약 시간</th><th>상태</th></tr>
+                <tr><th>자리</th><th>예약 시간</th><th>상태</th></tr>
               </thead>
               <tbody>
                 {reservations.slice(0, HISTORY_LIMIT).map(r => (
@@ -161,8 +161,8 @@ export default function MySeatPage() {
         <ConfirmDialog
           title={confirm === 'cancel' ? '예약을 취소할까요?' : '퇴실할까요?'}
           description={confirm === 'cancel'
-            ? `${active?.seat_number || ''} 좌석 예약이 취소되고, 다시 이용하려면 좌석 화면에서 새로 골라야 해요.`
-            : `${active?.seat_number || ''} 좌석 이용이 끝나고 다른 학우가 바로 예약할 수 있게 됩니다.`}
+            ? `${active?.seat_number || ''} 자리 예약이 취소되고, 다시 이용하려면 자리 화면에서 새로 골라야 해요.`
+            : `${active?.seat_number || ''} 자리 이용이 끝나고 다른 학우가 바로 예약할 수 있게 됩니다.`}
           confirmLabel={confirm === 'cancel' ? '예약 취소' : '퇴실'}
           tone="danger"
           busy={busy}

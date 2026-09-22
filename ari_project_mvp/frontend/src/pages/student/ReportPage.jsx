@@ -75,7 +75,7 @@ export default function ReportPage() {
   const submit = async (e) => {
     e.preventDefault()
     setError(''); setMsg('')
-    if (!valid) { setError('좌석, 유형, 시간대를 모두 선택해주세요'); return }
+    if (!valid) { setError('자리, 유형, 시간대를 모두 선택해주세요'); return }
     setSubmitting(true)
     try {
       const dateKey = kstDateKey(dayOffset)
@@ -109,8 +109,8 @@ export default function ReportPage() {
           {locations.map(l => <option key={l} value={l}>{l}</option>)}
         </TextField>
 
-        <TextField as="select" label="좌석" value={seatId} onChange={e => setSeatId(e.target.value)}>
-          <option value="">좌석을 선택하세요</option>
+        <TextField as="select" label="자리" value={seatId} onChange={e => setSeatId(e.target.value)}>
+          <option value="">자리를 선택하세요</option>
           {locationSeats.map(s => (
             <option key={s.id} value={s.id}>{s.seat_number} ({s.floor}층)</option>
           ))}

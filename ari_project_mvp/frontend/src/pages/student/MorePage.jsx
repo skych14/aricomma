@@ -53,7 +53,7 @@ export default function MorePage() {
         </MenuItem>
 
         <MenuItem as={Link} to="/my-seat" icon={<IconSeat size={MENU_ICON} />}>
-          내 좌석·이용 기록
+          내 자리·이용 기록
         </MenuItem>
 
         <MenuItem as={Link} to="/report" icon={<IconMail size={MENU_ICON} />}>

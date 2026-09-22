@@ -117,7 +117,7 @@ export default function HomePage() {
     return (
       <>
         <div className="home-center">
-          <ProfileRow user={user} statusLine="현재 이용중인 좌석 없음" warnings={warnings} />
+          <ProfileRow user={user} statusLine="현재 이용중인 자리 없음" warnings={warnings} />
 
           {rejected ? (
             <Notice
@@ -144,21 +144,21 @@ export default function HomePage() {
   }
 
   // ── 현재 상태 한 줄 ──────────────────────────────────────────────────
-  let statusLine = '현재 이용중인 좌석 없음'
+  let statusLine = '현재 이용중인 자리 없음'
   if (isPending) {
-    statusLine = `${active.seat_number || '—'} 좌석 예약 중 · 체크인 마감 ${fmtTime(active.expires_at)}`
+    statusLine = `${active.seat_number || '—'} 자리 예약 중 · 체크인 마감 ${fmtTime(active.expires_at)}`
   } else if (isUsing) {
-    statusLine = `${active.seat_number || '—'} 좌석 이용 중 · ${fmtTime(usageEndIso(active))}까지`
+    statusLine = `${active.seat_number || '—'} 자리 이용 중 · ${fmtTime(usageEndIso(active))}까지`
   }
 
   // ── 타일 4개 ────────────────────────────────────────────────────────
   const seatTile = suspended
-    ? { disabled: true, note: '이용 정지 중', label: '좌석 예약' }
+    ? { disabled: true, note: '이용 정지 중', label: '자리 예약' }
     : closed
-      ? { disabled: true, note: '지금은 이용 시간이 아니에요', label: '좌석 예약' }
+      ? { disabled: true, note: '지금은 이용 시간이 아니에요', label: '자리 예약' }
       : active
-        ? { label: '내 좌석 보기', to: '/my-seat' }
-        : { label: '좌석 현황 및 예약', to: '/seats' }
+        ? { label: '내 자리 보기', to: '/my-seat' }
+        : { label: '자리 현황 및 예약', to: '/seats' }
 
   const qrTile = suspended
     ? { disabled: true, note: '이용 정지 중' }
@@ -173,7 +173,7 @@ export default function HomePage() {
       ? { label: '예약 취소', to: '/my-seat' }
       : isUsing
         ? { label: '퇴실', to: '/my-seat' }
-        : { disabled: true, note: '이용 중인 좌석이 없어요', label: '퇴실·예약 취소' }
+        : { disabled: true, note: '이용 중인 자리가 없어요', label: '퇴실·예약 취소' }
 
   // ── 예약 만료 안내 ──────────────────────────────────────────────────
   const latestReservation = reservations[0] || null

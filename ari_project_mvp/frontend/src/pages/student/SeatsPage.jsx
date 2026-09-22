@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { operationApi, reservationApi, seatApi } from '../../api/index.js'
 import OperationBanner from '../../components/OperationBanner.jsx'
 import {
-  Button, EmptyState, LoadingBox, Notice, PageTitle, SeatTile, Tabs,
+  Button, EmptyState, HomeTile, LoadingBox, Notice, PageTitle, SeatTile,
 } from '../../components/ui/index.js'
-import { IconAccessible, IconBack, IconFemale, IconMale } from '../../components/ui/icons.jsx'
+import {
+  IconBack, IconFemale, IconMale, IconRoom, IconRoomCave,
+} from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { fmtTime } from '../../utils/helpers.js'
 
@@ -13,28 +15,42 @@ import { fmtTime } from '../../utils/helpers.js'
 // 좌석번호가 방마다 겹치므로(남/여 일반방 모두 A5-1 존재) 방(location) 단위로 관리
 const ACCESSIBLE_SEATS = {
   '남학우실 일반방': ['A5-1'],
-  '여학우실 일반방': ['A4-1', 'A6-1'],
+  '여학우실 일반방': ['A6-1'],
 }
 
-// 방별 배치도. grid 방의 rows는 [왼쪽 열, 오른쪽 열]의 bunk_group (null = 빈 칸)
+// 학우실 → 방 → 배치도. 주소의 gender(male|female)·room(general|gul)이 이 표의 키다.
+// grid 방의 rows는 [왼쪽 열, 오른쪽 열]의 bunk_group (null = 빈 칸)
 // ⚠️ 좌석 위치는 여기에 하드코딩되어 있음. 좌석·방·침대조를 추가/변경하면
 //    DB(backend/seed.py, 관리자 화면)와 함께 이 설정도 수정해야 배치도에 표시된다.
 //    시안: docs/design/*.png
-const ROOMS = {
-  male: [
-    {
-      location: '남학우실 일반방', label: '일반방', type: 'grid', entrance: 'bottom',
-      rows: [['A1', 'A3'], ['A2', 'A4'], [null, 'A5']],
-    },
-  ],
-  female: [
-    {
-      location: '여학우실 일반방', label: '일반방', type: 'grid', entrance: 'right',
-      rows: [['A1', 'A4'], ['A2', 'A5'], ['A3', 'A6']],
-    },
-    { location: '여학우실 굴방', label: '굴방', type: 'plan', groups: ['B1', 'B2', 'B3'] },
-  ],
+const HOUSES = {
+  male: {
+    label: '남학우실', icon: IconMale,
+    rooms: [
+      {
+        key: 'general', label: '일반방', icon: IconRoom,
+        location: '남학우실 일반방', type: 'grid', entrance: 'bottom',
+        rows: [['A1', 'A3'], ['A2', 'A4'], [null, 'A5']],
+      },
+    ],
+  },
+  female: {
+    label: '여학우실', icon: IconFemale,
+    rooms: [
+      {
+        key: 'general', label: '일반방', icon: IconRoom,
+        location: '여학우실 일반방', type: 'grid', entrance: 'right',
+        rows: [['A1', 'A4'], ['A2', 'A5'], ['A3', 'A6']],
+      },
+      {
+        key: 'gul', label: '굴방', icon: IconRoomCave,
+        location: '여학우실 굴방', type: 'plan', groups: ['B1', 'B2', 'B3'],
+      },
+    ],
+  },
 }
+
+const GENDERS = Object.keys(HOUSES)
 
 const isAvailable = (seat) => seat.current_status === 'available'
 
@@ -102,7 +118,6 @@ function GridRoom({ room, bunks, getSeatProps }) {
   const lastRow = room.rows.length - 1
   return (
     <div className="grid-room">
-      {room.entrance === 'right' && <Entrance direction="vertical" />}
       {room.rows.map((row, i) => (
         <div key={i} className="grid-room-row">
           {row.map((group, j) => (
@@ -164,28 +179,90 @@ function PlanRoom({ room, bunks, getSeatProps }) {
   )
 }
 
-// ── 페이지 ───────────────────────────────────────────────────────────────
+// ── 단계 공통: 맨 위 안내 ────────────────────────────────────────────────
 
-const ICON = 18
+/**
+ * 세 단계가 모두 같은 자리에 같은 안내를 보여준다 — 운영시간·정지·이미 예약 있음.
+ * 3단계까지 내려가서야 "예약할 수 없다"를 알게 되는 일을 막는 것.
+ */
+function StepNotices({ op, user, active, onGo }) {
+  return (
+    <>
+      <OperationBanner op={op} />
+
+      {user?.is_suspended && (
+        <Notice tone="danger" title="계정이 정지되어 예약할 수 없어요">
+          정지가 풀리면 다시 자리를 예약할 수 있어요.
+        </Notice>
+      )}
+
+      {!user?.is_verified && (
+        <Notice
+          tone="warning" lg
+          title="학생 인증이 필요해요"
+          action={<Button block onClick={() => onGo('/verify')}>인증하러 가기</Button>}
+        >
+          재학생 확인이 끝나야 자리를 예약할 수 있어요.
+        </Notice>
+      )}
+
+      {active && (
+        <Notice
+          tone="neutral"
+          title={`이미 ${active.seat_number || ''} 자리를 예약했어요`}
+          action={<Button variant="secondary" size="sm" onClick={() => onGo('/my-seat')}>내 자리 보기</Button>}
+        >
+          새로 예약하려면 먼저 예약을 취소하거나 퇴실해야 해요.
+        </Notice>
+      )}
+    </>
+  )
+}
+
+/** 각 단계 맨 위 "← 뒤로" (1단계는 "← 홈") */
+function BackLink({ to, label, onGo }) {
+  return (
+    <Button variant="ghost" size="sm" onClick={() => onGo(to)}>
+      <IconBack size={16} aria-hidden="true" /> {label}
+    </Button>
+  )
+}
+
+/** 학우실·방 고르는 큰 버튼 — 홈 타일과 같은 모양, 아래 줄에 남은 자리 수 */
+function ChoiceTile({ icon, label, count, onClick }) {
+  const empty = count.available === 0
+  return (
+    <HomeTile
+      icon={icon}
+      label={label}
+      note={empty ? '남은 자리 없음' : `이용 가능 ${count.available}/${count.total}`}
+      disabled={empty}
+      onClick={onClick}
+    />
+  )
+}
+
+// ── 페이지 ───────────────────────────────────────────────────────────────
 
 export default function SeatsPage() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
+  const { gender, room: roomKey } = useParams()
+
   const [seats, setSeats] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reserving, setReserving] = useState(false)
-  const [genderTab, setGenderTab] = useState('male')
-  const [roomIdx, setRoomIdx] = useState(0)
   const [selectedId, setSelectedId] = useState(null)
   const [op, setOp] = useState(null)
+  const [active, setActive] = useState(null)
 
   const load = async () => {
     try {
       const r = await seatApi.list()
       setSeats(r.data)
     } catch (e) {
-      setError(e.response?.data?.detail || '좌석 정보를 불러오지 못했습니다')
+      setError(e.response?.data?.detail || '자리 정보를 불러오지 못했습니다')
     } finally {
       setLoading(false)
     }
@@ -195,22 +272,102 @@ export default function SeatsPage() {
     try { setOp((await operationApi.get()).data) } catch { /* 안내 배너만 생략 */ }
   }
 
-  useEffect(() => { refreshUser?.().catch(() => {}); load(); loadOperation() }, [])
+  const loadActive = async () => {
+    try {
+      const r = await reservationApi.myList()
+      setActive(r.data.find(x => ['pending', 'checked_in'].includes(x.status)) || null)
+    } catch { /* 안내만 생략 */ }
+  }
 
-  const rooms = ROOMS[genderTab]
-  const room = rooms[roomIdx] || rooms[0]
+  useEffect(() => { refreshUser?.().catch(() => {}); load(); loadOperation(); loadActive() }, [])
+
+  // 방을 옮기면 이전 방에서 고른 자리는 버린다
+  useEffect(() => { setSelectedId(null); setError('') }, [gender, roomKey])
+
+  const house = gender ? HOUSES[gender] : null
+  const rooms = house?.rooms || []
+  const room = roomKey ? rooms.find(r => r.key === roomKey) : null
+
+  // 없는 주소는 1단계로 되돌린다
+  if (gender && !house) return <Navigate to="/seats" replace />
+  if (roomKey && !room) return <Navigate to="/seats" replace />
+  // 방이 하나뿐인 학우실(남학우실)은 방 선택 단계를 건너뛴다
+  if (house && !roomKey && rooms.length === 1) {
+    return <Navigate to={`/seats/${gender}/${rooms[0].key}`} replace />
+  }
+
+  const count = (pred) => {
+    const list = seats.filter(pred)
+    return { available: list.filter(isAvailable).length, total: list.length }
+  }
+
+  const go = (to) => navigate(to)
+  const notices = <StepNotices op={op} user={user} active={active} onGo={go} />
+
+  // ── 1단계: 학우실 선택 ─────────────────────────────────────────────
+  if (!house) {
+    return (
+      <div>
+        <BackLink to="/home" label="홈" onGo={go} />
+        <PageTitle>어느 학우실을 이용할까요?</PageTitle>
+        {notices}
+        {error && <Notice tone="danger">{error}</Notice>}
+
+        {loading ? <LoadingBox>자리 정보 불러오는 중...</LoadingBox> : (
+          <div className="seat-choices">
+            {GENDERS.map(key => (
+              <ChoiceTile
+                key={key}
+                icon={HOUSES[key].icon}
+                label={HOUSES[key].label}
+                count={count(s => s.room_gender === key)}
+                onClick={() => go(`/seats/${key}`)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── 2단계: 방 선택 ─────────────────────────────────────────────────
+  if (!room) {
+    return (
+      <div>
+        <BackLink to="/seats" label="뒤로" onGo={go} />
+        <PageTitle>어느 방을 이용할까요?</PageTitle>
+        {notices}
+        {error && <Notice tone="danger">{error}</Notice>}
+
+        {loading ? <LoadingBox>자리 정보 불러오는 중...</LoadingBox> : (
+          <div className="seat-choices">
+            {rooms.map(r => (
+              <ChoiceTile
+                key={r.key}
+                icon={r.icon}
+                label={r.label}
+                count={count(s => s.location === r.location)}
+                onClick={() => go(`/seats/${gender}/${r.key}`)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── 3단계: 자리 배치도 ─────────────────────────────────────────────
   const roomSeats = seats.filter(s => s.location === room.location)
   const bunks = groupByBunk(roomSeats)
   const accessible = ACCESSIBLE_SEATS[room.location] || []
 
-  // 선택한 좌석이 다른 방이거나 더 이상 이용 가능하지 않으면 선택 해제로 취급
+  // 고른 자리가 더 이상 이용 가능하지 않으면 선택 해제로 취급
   const selected = roomSeats.find(s => s.id === selectedId && isAvailable(s)) || null
 
   // 7시간 모드에서 운영시간 밖이면 예약 버튼을 막는다 (백엔드도 409로 거절)
   const closed = op ? !op.is_open_now : false
-
-  const selectGender = (g) => { setGenderTab(g); setRoomIdx(0); setSelectedId(null); setError('') }
-  const selectRoom = (key) => { setRoomIdx(Number(key)); setSelectedId(null); setError('') }
+  // 남학우실은 2단계를 건너뛰었으니 뒤로 가면 1단계다
+  const backTo = rooms.length > 1 ? `/seats/${gender}` : '/seats'
 
   const getSeatProps = (seat) => ({
     accessible: !!seat && accessible.includes(seat.seat_number),
@@ -232,69 +389,26 @@ export default function SeatsPage() {
       setSelectedId(null)
       load()
       loadOperation()
+      loadActive()
     } finally {
       setReserving(false)
     }
   }
 
-  const count = (pred) => {
-    const list = seats.filter(pred)
-    return { available: list.filter(isAvailable).length, total: list.length }
-  }
-  const genderCount = { male: count(s => s.room_gender === 'male'), female: count(s => s.room_gender === 'female') }
-
-  const genderTabs = [
-    { key: 'male', label: '남학우실', icon: <IconMale size={ICON} aria-hidden="true" /> },
-    { key: 'female', label: '여학우실', icon: <IconFemale size={ICON} aria-hidden="true" /> },
-  ].map(t => ({ ...t, count: `(${genderCount[t.key].available}/${genderCount[t.key].total})` }))
-
-  const roomTabs = rooms.map((r, i) => {
-    const c = count(s => s.location === r.location)
-    return { key: String(i), label: r.label, count: `${c.available}/${c.total}` }
-  })
-
   return (
     <div>
-      <Button variant="ghost" size="sm" onClick={() => navigate('/home')}>
-        <IconBack size={16} aria-hidden="true" /> 홈
-      </Button>
-      <PageTitle>좌석 현황</PageTitle>
-
-      <OperationBanner op={op} />
-
-      {!user?.is_verified && (
-        <Notice
-          tone="warning" lg
-          title="학생 인증이 필요해요"
-          action={<Button block onClick={() => navigate('/verify')}>인증하러 가기</Button>}
-        >
-          재학생 확인이 끝나야 좌석을 예약할 수 있어요.
-        </Notice>
-      )}
+      <BackLink to={backTo} label="뒤로" onGo={go} />
+      <PageTitle>{house.label} {room.label}</PageTitle>
+      {notices}
       {error && <Notice tone="danger">{error}</Notice>}
 
-      {/* 성별 탭 */}
-      <Tabs items={genderTabs} value={genderTab} onChange={selectGender} fill label="학우실 선택" />
-
-      {/* 방 선택 (여학우실: 일반방 / 굴방) */}
-      {rooms.length > 1 && (
-        <Tabs items={roomTabs} value={String(roomIdx)} onChange={selectRoom} fill label="방 선택" />
-      )}
-
-      <div className="seat-legend" aria-hidden="true">
-        <span><i className="seat-legend-swatch is-available" />이용가능</span>
-        <span><i className="seat-legend-swatch is-unavailable" />이용불가</span>
-        <span><i className="seat-legend-swatch is-selected" />선택</span>
-        <span><IconAccessible size={14} className="seat-legend-accessible" /> 배려 권장석</span>
-      </div>
-
       {loading ? (
-        <LoadingBox>좌석 정보 불러오는 중...</LoadingBox>
+        <LoadingBox>자리 정보 불러오는 중...</LoadingBox>
       ) : roomSeats.length === 0 ? (
-        <EmptyState title="좌석 정보가 없습니다." />
+        <EmptyState title="자리 정보가 없습니다." />
       ) : (
         <section className="seat-map" aria-label={`${room.location} 배치도`}>
-          <h2 className="seat-map-title">이용하실 좌석을 선택하세요.</h2>
+          <h2 className="seat-map-title">이용하실 자리를 선택하세요.</h2>
           {room.type === 'grid'
             ? <GridRoom room={room} bunks={bunks} getSeatProps={getSeatProps} />
             : <PlanRoom room={room} bunks={bunks} getSeatProps={getSeatProps} />}
@@ -323,7 +437,7 @@ export default function SeatsPage() {
       )}
 
       <Notice tone="info">
-        좌석 예약 후 <strong>10분 내</strong>에 현장 침대에 부착된 QR을 스캔하여 체크인해야 합니다.
+        자리 예약 후 <strong>10분 내</strong>에 현장 침대에 부착된 QR을 스캔하여 체크인해야 합니다.
         체크인하지 않으면 예약이 자동으로 만료됩니다.
       </Notice>
     </div>

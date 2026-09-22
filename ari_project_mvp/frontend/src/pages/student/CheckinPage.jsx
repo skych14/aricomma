@@ -246,7 +246,7 @@ export default function CheckinPage() {
     <Card elevated className="checkin-result">
       <IconCelebrate size={48} className="checkin-result-icon" aria-hidden="true" />
       <h2 className="checkin-result-title">체크인 완료!</h2>
-      <p className="text-muted">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용이 시작되었습니다.</p>
+      <p className="text-muted">자리 <span className="seat-no">{reservation.seat_number}</span> 이용이 시작되었습니다.</p>
       {usageEnd && (
         <p className="usage-end-line">이용 종료 예정 <strong>{fmtTime(usageEnd)}</strong></p>
       )}
@@ -258,7 +258,7 @@ export default function CheckinPage() {
     <Card elevated className="checkin-result">
       <IconDone size={48} className="checkin-result-icon" aria-hidden="true" />
       <h2 className="checkin-result-title">이미 체크인된 예약입니다</h2>
-      <p className="text-muted">좌석 <span className="seat-no">{reservation.seat_number}</span> 이용 중</p>
+      <p className="text-muted">자리 <span className="seat-no">{reservation.seat_number}</span> 이용 중</p>
       <Button onClick={() => navigate('/home')}>홈으로</Button>
     </Card>
   )
@@ -268,7 +268,7 @@ export default function CheckinPage() {
       <IconExpired size={48} className="checkin-result-icon" aria-hidden="true" />
       <h2 className="checkin-result-title">유효하지 않은 예약입니다</h2>
       <p className="text-muted">다시 예약해주세요.</p>
-      <Button onClick={() => navigate('/seats')}>좌석 예약하기</Button>
+      <Button onClick={() => navigate('/seats')}>자리 예약하기</Button>
     </Card>
   )
 
@@ -282,7 +282,7 @@ export default function CheckinPage() {
       <Card elevated>
         <div className="checkin-head">
           <div>
-            <div className="section-title">예약 좌석: <span className="seat-no">{reservation.seat_number || '—'}</span></div>
+            <div className="section-title">예약 자리: <span className="seat-no">{reservation.seat_number || '—'}</span></div>
             <div className="text-muted">{reservation.location} · 침대</div>
           </div>
           <div className="text-center">

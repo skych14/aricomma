@@ -80,7 +80,7 @@ def create_report(
 
     seat = db.query(Seat).filter(Seat.id == body.seat_id).first()
     if not seat:
-        raise HTTPException(status_code=404, detail="좌석을 찾을 수 없습니다")
+        raise HTTPException(status_code=404, detail="자리를 찾을 수 없습니다")
 
     # ── 시간대 검증 ──
     if body.occurred_from >= body.occurred_to:

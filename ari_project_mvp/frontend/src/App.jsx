@@ -55,7 +55,10 @@ export default function App() {
           <Route path="/report" element={
             <ProtectedRoute><Layout><ReportPage /></Layout></ProtectedRoute>
           } />
-          <Route path="/seats" element={
+          {/* 자리 고르기는 단계마다 주소를 나눈다(학우실 → 방 → 배치도) — 뒤로 가기가
+              단계 되돌리기가 되게. 한 Route로 받아서 단계를 옮겨도 자리 목록을
+              다시 불러오지 않는다. */}
+          <Route path="/seats/:gender?/:room?" element={
             <ProtectedRoute><Layout><SeatsPage /></Layout></ProtectedRoute>
           } />
           <Route path="/checkin/:rid" element={

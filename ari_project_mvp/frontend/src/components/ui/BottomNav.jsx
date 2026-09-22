@@ -6,7 +6,7 @@ const SIZE = 22
 
 // 학생 화면의 하단 탭. 순서는 화면 이동이 잦은 순.
 const ITEMS = [
-  { to: '/seats', label: '좌석 예약', Icon: IconSeat },
+  { to: '/seats', label: '자리 예약', Icon: IconSeat },
   { to: '/dashboard', label: '대시보드', Icon: IconDashboard },
   { to: '/report', label: '신고', Icon: IconReport },
   { to: '/verify', label: '인증', Icon: IconVerify },

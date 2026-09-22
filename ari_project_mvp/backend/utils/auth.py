@@ -84,9 +84,13 @@ def get_verified_student(user: User = Depends(get_current_student)) -> User:
     return user
 
 
-def suspension_message(user: User) -> str:
-    """정지 안내 문구. 해제 예정일이 있으면 함께 알려준다 (한국시간 표기)."""
-    base = "계정이 정지되어 예약할 수 없습니다"
+def suspension_message(user: User, action: str = "예약") -> str:
+    """정지 안내 문구. 해제 예정일이 있으면 함께 알려준다 (한국시간 표기).
+
+    action은 막힌 동작("예약" / "이용") — 예약 화면과 체크인 화면에서 읽히는
+    문장이 다르기 때문에 부르는 쪽이 정한다.
+    """
+    base = f"계정이 정지되어 {action}할 수 없습니다"
     if not user.suspended_until:
         return base
     kst = to_kst(user.suspended_until)
@@ -96,4 +100,11 @@ def suspension_message(user: User) -> str:
 def get_active_student(user: User = Depends(get_verified_student)) -> User:
     if user.is_suspended:
         raise HTTPException(status_code=403, detail=suspension_message(user))
+    return user
+
+
+def get_checkin_student(user: User = Depends(get_verified_student)) -> User:
+    """체크인 전용 — 막는 조건은 get_active_student와 같고 안내 문구만 다르다."""
+    if user.is_suspended:
+        raise HTTPException(status_code=403, detail=suspension_message(user, "이용"))
     return user

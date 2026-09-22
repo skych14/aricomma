@@ -26,11 +26,11 @@ function PrivacyNotice() {
           <dt>수집 항목</dt>
           <dd>제출한 화면 캡처 (이름, 학번, 학과, 재학 상태)</dd>
           <dt>이용 목적</dt>
-          <dd>재학생 확인 후 좌석 예약 권한 부여</dd>
+          <dd>재학생 확인 후 자리 예약 권한 부여</dd>
           <dt>보관 기간</dt>
           <dd>관리자가 승인 또는 거절하는 즉시 이미지를 삭제합니다. 처리 결과 기록만 남습니다.</dd>
           <dt>동의 거부</dt>
-          <dd>동의를 거부할 수 있으나, 거부하면 좌석 예약을 이용할 수 없습니다.</dd>
+          <dd>동의를 거부할 수 있으나, 거부하면 자리 예약을 이용할 수 없습니다.</dd>
         </dl>
       )}
     </div>
@@ -128,8 +128,8 @@ export default function VerificationPage() {
 
       {/* 상태 안내 — 이 화면의 주인공 */}
       {verified ? (
-        <Notice tone="success" lg title="인증 완료! 이제 좌석을 예약할 수 있어요"
-          action={<Button block onClick={() => navigate('/seats')}>좌석 예약하러 가기</Button>} />
+        <Notice tone="success" lg title="인증 완료! 이제 자리를 예약할 수 있어요"
+          action={<Button block onClick={() => navigate('/seats')}>자리 예약하러 가기</Button>} />
       ) : pending ? (
         <Notice tone="warning" lg title="관리자가 확인 중이에요">
           보통 {REVIEW_HOURS}시간 이내에 처리됩니다.

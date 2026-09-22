@@ -78,7 +78,7 @@ export default function QrPrintPage() {
     try {
       const r = await seatApi.rotateQrAll()
       await load()
-      setMsg(`활성 좌석 ${r.data.rotated_count}개의 QR을 모두 재발급했습니다. 전체 스티커를 교체하세요.`)
+      setMsg(`활성 자리 ${r.data.rotated_count}개의 QR을 모두 재발급했습니다. 전체 스티커를 교체하세요.`)
     } catch (e) { setError(errMsg(e)) }
     finally { setBusyId(null) }
   }
@@ -103,7 +103,7 @@ export default function QrPrintPage() {
         {msg && <Notice tone="success">{msg}</Notice>}
 
         <Notice tone="info">
-          QR에는 좌석의 <strong>qr_token</strong> 값만 들어갑니다. 인쇄 후 잘라서 해당 침대에 부착하세요.
+          QR에는 자리의 <strong>qr_token</strong> 값만 들어갑니다. 인쇄 후 잘라서 해당 침대에 부착하세요.
         </Notice>
 
         <div className="qr-print-toolbar">
@@ -155,14 +155,14 @@ export default function QrPrintPage() {
       ))}
 
       {totalVisible === 0 && (
-        <Card className="no-print"><EmptyState title="표시할 활성 좌석이 없습니다." /></Card>
+        <Card className="no-print"><EmptyState title="표시할 활성 자리가 없습니다." /></Card>
       )}
 
       {confirming && (
         <ConfirmDialog
           title={confirming === '__all__' ? '전체 QR을 재발급할까요?' : 'QR을 재발급할까요?'}
           description={confirming === '__all__'
-            ? `활성 좌석 ${totalVisible}개의 QR을 모두 새로 만듭니다.\n${ROTATE_CONFIRM}`
+            ? `활성 자리 ${totalVisible}개의 QR을 모두 새로 만듭니다.\n${ROTATE_CONFIRM}`
             : `${confirming.location} ${confirming.seat_number}의 QR을 새로 만듭니다.\n${ROTATE_CONFIRM}`}
           confirmLabel="재발급"
           tone="danger"
