@@ -5,9 +5,10 @@ import {
   Button, Card, ConfirmDialog, EmptyState, LoadingBox,
   Notice, PageTitle, StatusBadge,
 } from '../../components/ui/index.js'
-import { IconBack, IconQr } from '../../components/ui/icons.jsx'
+import { IconBack, IconQr, IconSeatMap } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { errMsg, fmtDatetime, fmtTime, parseUTC } from '../../utils/helpers.js'
+import { seatMapPath } from '../../utils/rooms.js'
 
 // usage_ends_at 도입 전에 체크인된 예약을 위한 예전 계산 (백엔드 max_usage_seconds)
 const MAX_USAGE_MS = 2 * 60 * 60 * 1000
@@ -118,6 +119,9 @@ export default function MySeatPage() {
                 <IconQr size={18} aria-hidden="true" /> QR 체크인
               </Button>
             )}
+            <Button variant="secondary" onClick={() => navigate(seatMapPath(active.location))}>
+              <IconSeatMap size={18} aria-hidden="true" /> 배치도에서 보기
+            </Button>
             <Button variant="danger" onClick={() => setConfirm(isPending ? 'cancel' : 'checkout')}>
               {isPending ? '예약 취소' : '퇴실'}
             </Button>

@@ -269,6 +269,9 @@ a.ui-header-logo:hover { text-decoration: none; }
 .ui-seat--selected { border: 3px solid var(--seat-selected); }
 /* 내가 예약한 좌석 — 선택과 구분되게 브랜드 면을 함께 쓴다 */
 .ui-seat--mine { border: 3px solid var(--brand-strong); background: var(--brand-soft); }
+/* 보기 전용 — 흐리게 만들지 않는다. 누를 수 없다는 것만 커서로 */
+.ui-seat--readonly { cursor: default; }
+.ui-seat--readonly:hover { box-shadow: none; }
 .ui-seat:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .ui-seat-number { font-size: var(--fs-seat-number); font-weight: 700; }
 .ui-seat-status { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-seat-status); }

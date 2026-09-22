@@ -1,56 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import React, { useEffect, useRef, useState } from 'react'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { operationApi, reservationApi, seatApi } from '../../api/index.js'
 import OperationBanner from '../../components/OperationBanner.jsx'
 import {
   Button, EmptyState, HomeTile, LoadingBox, Notice, PageTitle, SeatTile,
 } from '../../components/ui/index.js'
-import {
-  IconBack, IconFemale, IconMale, IconRoom, IconRoomCave,
-} from '../../components/ui/icons.jsx'
+import { IconBack } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import { fmtTime } from '../../utils/helpers.js'
-
-// 장애인 배려 권장석 — 표시만 하고 예약 제한·우선권은 없음.
-// 좌석번호가 방마다 겹치므로(남/여 일반방 모두 A5-1 존재) 방(location) 단위로 관리
-const ACCESSIBLE_SEATS = {
-  '남학우실 일반방': ['A5-1'],
-  '여학우실 일반방': ['A6-1'],
-}
-
-// 학우실 → 방 → 배치도. 주소의 gender(male|female)·room(general|gul)이 이 표의 키다.
-// grid 방의 rows는 [왼쪽 열, 오른쪽 열]의 bunk_group (null = 빈 칸)
-// ⚠️ 좌석 위치는 여기에 하드코딩되어 있음. 좌석·방·침대조를 추가/변경하면
-//    DB(backend/seed.py, 관리자 화면)와 함께 이 설정도 수정해야 배치도에 표시된다.
-//    시안: docs/design/*.png
-const HOUSES = {
-  male: {
-    label: '남학우실', icon: IconMale,
-    rooms: [
-      {
-        key: 'general', label: '일반방', icon: IconRoom,
-        location: '남학우실 일반방', type: 'grid', entrance: 'bottom',
-        rows: [['A1', 'A3'], ['A2', 'A4'], [null, 'A5']],
-      },
-    ],
-  },
-  female: {
-    label: '여학우실', icon: IconFemale,
-    rooms: [
-      {
-        key: 'general', label: '일반방', icon: IconRoom,
-        location: '여학우실 일반방', type: 'grid', entrance: 'right',
-        rows: [['A1', 'A4'], ['A2', 'A5'], ['A3', 'A6']],
-      },
-      {
-        key: 'gul', label: '굴방', icon: IconRoomCave,
-        location: '여학우실 굴방', type: 'plan', groups: ['B1', 'B2', 'B3'],
-      },
-    ],
-  },
-}
-
-const GENDERS = Object.keys(HOUSES)
+import { ACCESSIBLE_SEATS, GENDERS, HOUSES } from '../../utils/rooms.js'
 
 const isAvailable = (seat) => seat.current_status === 'available'
 
@@ -102,18 +60,24 @@ function BunkLadder(props) {
 }
 
 /** 배치도의 좌석 한 칸 — 서버 좌석 객체를 SeatTile props로 옮긴다. */
-function Seat({ seat, accessible, selected, onSelect, className = '', style, free }) {
+function Seat({ seat, accessible, selected, mine, readOnly, onSelect, className = '', style, free }) {
   if (!seat) return null
+  // 보기 전용일 때도 이용가능/이용불가는 그대로 보여준다 — 현황을 보는 화면이라
+  // 빈자리가 어디인지가 그대로 읽혀야 한다.
+  const status = mine ? 'reserved-by-me'
+    : !isAvailable(seat) ? 'unavailable'
+      : selected ? 'selected' : 'available'
   return (
     <SeatTile
       seatNumber={seat.seat_number}
       floor={seat.floor}
-      status={!isAvailable(seat) ? 'unavailable' : selected ? 'selected' : 'available'}
+      status={status}
       accessible={accessible}
       free={free}
+      readOnly={readOnly}
       className={className}
       style={style}
-      onSelect={() => onSelect(seat)}
+      onSelect={readOnly ? undefined : () => onSelect(seat)}
     />
   )
 }
@@ -210,8 +174,11 @@ function PlanRoom({ room, bunks, getSeatProps }) {
 /**
  * 세 단계가 모두 같은 자리에 같은 안내를 보여준다 — 운영시간·정지·이미 예약 있음.
  * 3단계까지 내려가서야 "예약할 수 없다"를 알게 되는 일을 막는 것.
+ *
+ * 3단계는 보기 전용으로 바뀌면서 "내 자리는 …" 안내가 그 자리를 대신하므로
+ * hideActive로 예약 안내만 끈다.
  */
-function StepNotices({ op, user, active, onGo }) {
+function StepNotices({ op, user, active, hideActive = false, onGo }) {
   return (
     <>
       <OperationBanner op={op} />
@@ -232,7 +199,7 @@ function StepNotices({ op, user, active, onGo }) {
         </Notice>
       )}
 
-      {active && (
+      {active && !hideActive && (
         <Notice
           tone="neutral"
           title={`이미 ${active.seat_number || ''} 자리를 예약했어요`}
@@ -246,9 +213,9 @@ function StepNotices({ op, user, active, onGo }) {
 }
 
 /** 각 단계 맨 위 "← 뒤로" (1단계는 "← 홈") */
-function BackLink({ to, label, onGo }) {
+function BackLink({ to, label, onGo, onClick }) {
   return (
-    <Button variant="ghost" size="sm" onClick={() => onGo(to)}>
+    <Button variant="ghost" size="sm" onClick={onClick || (() => onGo(to))}>
       <IconBack size={16} aria-hidden="true" /> {label}
     </Button>
   )
@@ -273,6 +240,7 @@ function ChoiceTile({ icon, label, count, onClick }) {
 export default function SeatsPage() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
+  const { pathname, key: historyKey } = useLocation()
   const { gender, room: roomKey } = useParams()
 
   const [seats, setSeats] = useState([])
@@ -282,6 +250,8 @@ export default function SeatsPage() {
   const [selectedId, setSelectedId] = useState(null)
   const [op, setOp] = useState(null)
   const [active, setActive] = useState(null)
+  // 보기 전용으로 열었을 때 내 자리로 한 번만 스크롤하기 위한 표시
+  const scrolledRef = useRef(false)
 
   const load = async () => {
     try {
@@ -308,7 +278,17 @@ export default function SeatsPage() {
   useEffect(() => { refreshUser?.().catch(() => {}); load(); loadOperation(); loadActive() }, [])
 
   // 방을 옮기면 이전 방에서 고른 자리는 버린다
-  useEffect(() => { setSelectedId(null); setError('') }, [gender, roomKey])
+  useEffect(() => { setSelectedId(null); setError(''); scrolledRef.current = false }, [gender, roomKey])
+
+  // 보기 전용으로 열면 내 자리가 화면 가운데 오게 한 번만 스크롤한다.
+  // 칸은 배치도 안에 절대 위치로 놓여 있어 ref를 달기 어려우므로 그려진 뒤 찾는다.
+  useEffect(() => {
+    if (scrolledRef.current || loading || !active) return
+    const el = document.querySelector('.seat-map .ui-seat--mine')
+    if (!el) return
+    scrolledRef.current = true
+    el.scrollIntoView({ block: 'center' })
+  }, [loading, active, pathname])
 
   const house = gender ? HOUSES[gender] : null
   const rooms = house?.rooms || []
@@ -328,7 +308,11 @@ export default function SeatsPage() {
   }
 
   const go = (to) => navigate(to)
-  const notices = <StepNotices op={op} user={user} active={active} onGo={go} />
+  // 진행 중인 예약이 있으면 3단계는 고르는 화면이 아니라 현황을 보는 화면이 된다
+  const readOnly = !!active && !!room
+  const notices = (
+    <StepNotices op={op} user={user} active={active} hideActive={readOnly} onGo={go} />
+  )
 
   // ── 1단계: 학우실 선택 ─────────────────────────────────────────────
   if (!house) {
@@ -397,9 +381,19 @@ export default function SeatsPage() {
 
   const getSeatProps = (seat) => ({
     accessible: !!seat && accessible.includes(seat.seat_number),
-    selected: !!seat && seat.id === selected?.id,
+    selected: !readOnly && !!seat && seat.id === selected?.id,
+    mine: readOnly && !!seat && seat.id === active.seat_id,
+    readOnly,
     onSelect: (s) => { setError(''); setSelectedId(s.id === selected?.id ? null : s.id) },
   })
+
+  // 보기 전용으로 들어왔으면 뒤로 가기는 들어온 곳으로 —
+  // 주소로 바로 열었으면(첫 방문이라 history.key가 'default') 더보기로 보낸다
+  const goBack = () => {
+    if (!readOnly) { go(backTo); return }
+    if (historyKey === 'default') navigate('/more')
+    else navigate(-1)
+  }
 
   const handleReserve = async () => {
     if (!selected) return
@@ -423,9 +417,15 @@ export default function SeatsPage() {
 
   return (
     <div>
-      <BackLink to={backTo} label="뒤로" onGo={go} />
+      <BackLink label="뒤로" onClick={goBack} />
       <PageTitle>{house.label} {room.label}</PageTitle>
       {notices}
+      {readOnly && (
+        <Notice tone="info" title={`내 자리는 ${active.location} ${active.seat_number}예요`}>
+          {active.status === 'pending' &&
+            '예약 후 10분 안에 현장 침대의 QR을 스캔해야 자리가 유지돼요.'}
+        </Notice>
+      )}
       {error && <Notice tone="danger">{error}</Notice>}
 
       {loading ? (
@@ -434,14 +434,17 @@ export default function SeatsPage() {
         <EmptyState title="자리 정보가 없습니다." />
       ) : (
         <section className="seat-map" aria-label={`${room.location} 배치도`}>
-          <h2 className="seat-map-title">이용하실 자리를 선택하세요.</h2>
+          <h2 className="seat-map-title">
+            {readOnly ? '지금 자리 현황이에요.' : '이용하실 자리를 선택하세요.'}
+          </h2>
           {room.type === 'grid'
             ? <GridRoom room={room} bunks={bunks} getSeatProps={getSeatProps} />
             : <PlanRoom room={room} bunks={bunks} getSeatProps={getSeatProps} />}
         </section>
       )}
 
-      {selected && (
+      {/* 보기 전용이면 고를 수 없으니 예약 바도 없다 */}
+      {!readOnly && selected && (
         <div className="seat-action-bar">
           <div className="seat-action-info">
             <strong>{room.location} <span className="seat-no">{selected.seat_number}</span></strong>
@@ -462,10 +465,12 @@ export default function SeatsPage() {
         </div>
       )}
 
-      <Notice tone="info">
-        자리 예약 후 <strong>10분 내</strong>에 현장 침대에 부착된 QR을 스캔하여 체크인해야 합니다.
-        체크인하지 않으면 예약이 자동으로 만료됩니다.
-      </Notice>
+      {!readOnly && (
+        <Notice tone="info">
+          자리 예약 후 <strong>10분 내</strong>에 현장 침대에 부착된 QR을 스캔하여 체크인해야 합니다.
+          체크인하지 않으면 예약이 자동으로 만료됩니다.
+        </Notice>
+      )}
     </div>
   )
 }

@@ -16,22 +16,43 @@ const SCANNER_ELEMENT_ID = 'checkin-qr-reader'
 const CAMERA_DENIED = 'denied'
 const CAMERA_UNAVAILABLE = 'unavailable'
 
+const secsLeft = (expiresAt) =>
+  Math.max(0, Math.floor((parseUTC(expiresAt) - Date.now()) / 1000))
+
+/**
+ * 체크인 마감까지 남은 시간.
+ *
+ * "09:57"은 시각처럼 읽히므로 "9분 57초"로 쓰고, 진짜 마감 시각은 아래 줄에
+ * 따로 적는다. 값이 1초마다 바뀌어서 aria-live는 두지 않는다 — 대신 마감
+ * 시각을 aria-label로 붙여 화면 읽기에서 한 번에 알 수 있게 한다.
+ */
 function Countdown({ expiresAt }) {
-  const [secs, setSecs] = useState(0)
+  const [secs, setSecs] = useState(() => secsLeft(expiresAt))
 
   useEffect(() => {
-    const tick = () => {
-      const diff = Math.max(0, Math.floor((parseUTC(expiresAt) - Date.now()) / 1000))
-      setSecs(diff)
-    }
-    tick()
-    const iv = setInterval(tick, 1000)
+    setSecs(secsLeft(expiresAt))
+    const iv = setInterval(() => setSecs(secsLeft(expiresAt)), 1000)
     return () => clearInterval(iv)
   }, [expiresAt])
 
-  const min = String(Math.floor(secs / 60)).padStart(2, '0')
-  const sec = String(secs % 60).padStart(2, '0')
-  return <div className={`timer ${secs > 60 ? 'ok' : ''}`}>{min}:{sec}</div>
+  const deadline = fmtTime(expiresAt)
+  const min = Math.floor(secs / 60)
+  const left = secs === 0 ? '시간이 지났어요'
+    : min > 0 ? `${min}분 ${secs % 60}초`
+      : `${secs}초`
+
+  return (
+    <div className="checkin-countdown">
+      <div className="checkin-deadline-label">남은 시간</div>
+      <div
+        className={`timer${secs === 0 ? ' timer--over' : secs > 60 ? ' ok' : ''}`}
+        aria-label={`체크인 마감 ${deadline}`}
+      >
+        {left}
+      </div>
+      <div className="checkin-deadline-at">마감 {deadline}</div>
+    </div>
+  )
 }
 
 export default function CheckinPage() {
@@ -285,10 +306,7 @@ export default function CheckinPage() {
             <div className="section-title">예약 자리: <span className="seat-no">{reservation.seat_number || '—'}</span></div>
             <div className="text-muted">{reservation.location} · 침대</div>
           </div>
-          <div className="text-center">
-            <div className="checkin-deadline-label">체크인 마감</div>
-            <Countdown expiresAt={reservation.expires_at} />
-          </div>
+          <Countdown expiresAt={reservation.expires_at} />
         </div>
 
         {error && <Notice tone="danger">{error}</Notice>}

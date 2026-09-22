@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { verificationApi } from '../../api/index.js'
+import { reservationApi, verificationApi } from '../../api/index.js'
 import Logo from '../../components/Logo.jsx'
 import { Button, MenuItem, StatusBadge } from '../../components/ui/index.js'
 import {
-  IconBack, IconLogout, IconMail, IconSeat, IconVerify,
+  IconBack, IconLogout, IconMail, IconSeat, IconSeatMap, IconVerify,
 } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
+import { seatMapPath } from '../../utils/rooms.js'
 
 const MENU_ICON = 20
 
@@ -21,12 +22,22 @@ export default function MorePage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [reviewing, setReviewing] = useState(false)
+  const [active, setActive] = useState(null)   // 진행 중인 예약(예약 중·이용 중)
 
   useEffect(() => {
     verificationApi.myStatus()
       .then(r => setReviewing(r.data.some(v => v.status === 'pending')))
       .catch(() => {})
+    reservationApi.myList()
+      .then(r => setActive(r.data.find(x => ['pending', 'checked_in'].includes(x.status)) || null))
+      .catch(() => {})
   }, [])
+
+  // 진행 중인 예약이 있으면 내 자리가 있는 방 배치도로 바로 간다
+  const seatsTo = active ? seatMapPath(active.location) : '/seats'
+  const seatsNote = active
+    ? `${active.seat_number || ''} · ${active.status === 'checked_in' ? '이용 중' : '예약 중'}`
+    : ''
 
   const handleLogout = () => {
     logout()
@@ -49,6 +60,13 @@ export default function MorePage() {
           <span className="more-row">
             학생 인증
             <VerifyBadge verified={!!user?.is_verified} reviewing={reviewing} />
+          </span>
+        </MenuItem>
+
+        <MenuItem as={Link} to={seatsTo} icon={<IconSeatMap size={MENU_ICON} />}>
+          <span className="more-row">
+            자리 현황
+            {seatsNote && <span className="more-note">{seatsNote}</span>}
           </span>
         </MenuItem>
 

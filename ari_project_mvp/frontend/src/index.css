@@ -153,6 +153,8 @@ tr:hover td { background: var(--surface-tint); }
 }
 .plan-room .plan-seat.ui-seat--unavailable { border-color: var(--line); }
 .plan-room .plan-seat.ui-seat--selected { border-color: var(--seat-selected); }
+/* 내 자리 — 평면도는 기본 테두리가 투명이라 여기서도 따로 켜준다 */
+.plan-room .plan-seat.ui-seat--mine { border-color: var(--brand-strong); }
 
 /* 선택한 좌석 예약 바 — 화면 아래에 고정 */
 .seat-action-bar {
@@ -519,7 +521,12 @@ tr:hover td { background: var(--surface-tint); }
   display: flex; justify-content: space-between; align-items: flex-start;
   flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3);
 }
+.checkin-countdown { text-align: center; }
 .checkin-deadline-label { font-size: var(--fs-label); color: var(--ink-muted); }
+/* 진짜 마감 시각 — 남은 시간과 섞이지 않게 작게 아래에 */
+.checkin-deadline-at { font-size: var(--fs-label); color: var(--ink-muted); }
+/* "시간이 지났어요"는 숫자보다 길어서 한 줄에 들어가게 줄인다 */
+.timer--over { font-size: var(--fs-title); }
 .checkin-guide {
   margin-bottom: var(--space-2); text-align: center;
   font-size: var(--fs-body); color: var(--ink-muted);
@@ -633,6 +640,9 @@ tr:hover td { background: var(--surface-tint); }
   margin-top: var(--space-2);
   font-size: var(--fs-logo); font-weight: 700; color: var(--ink); line-height: 1.2;
 }
+/* 메뉴 줄 오른쪽 보조 글자 (예: "A1-2 · 이용 중") */
+.more-note { font-size: var(--fs-label); color: var(--ink-muted); white-space: nowrap; }
+
 /* 메뉴 줄 안에서 오른쪽에 상태 배지를 붙일 때 */
 .more-row {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);

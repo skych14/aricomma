@@ -19,6 +19,7 @@ export {
   FileText as IconFile,              // 📄 PDF·첨부
   IdCard as IconVerify,              // 📋 학생 인증
   LayoutDashboard as IconDashboard,  // 🏠 대시보드
+  LayoutGrid as IconSeatMap,         // ▦ 자리 배치도·자리 현황
   LogOut as IconLogout,
   Mail as IconMail,                  // ✉️ 민원 신고
   Mars as IconMale,                  // 🚹 남학우실
