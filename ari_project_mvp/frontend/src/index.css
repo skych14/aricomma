@@ -98,21 +98,27 @@ tr:hover td { background: var(--surface-tint); }
 /* 선택은 색이 아니라 테두리 두께(3px)로 구분한다 */
 
 /* 일반방: 2층 침대 한 쌍 — 2층(위), 1층(아래)을 한 줄로 세로로 쌓는다.
-   같은 침대라는 게 보이게 두 칸의 왼쪽 끝을 정확히 맞추고, 사다리는 사이 가운데. */
+   같은 침대라는 게 보이게 두 칸의 왼쪽 끝을 정확히 맞춘다. */
 /* 크기는 SeatTile의 토큰 값(--seat-width 95 × --seat-height 66)을 그대로 쓰고,
-   컨테이너는 그 위에서 계산한다: 폭 95, 높이 66+14(사이 간격)+66 */
+   컨테이너는 그 위에서 계산한다: 폭 95, 높이 66+12(사이 간격)+66.
+   두 칸 모두 absolute라 사다리가 커져도 간격은 --bunk-gap 그대로다. */
 .bunk-pair {
+  --bunk-gap: 12px;
   position: relative;
   width: var(--seat-width);
-  height: calc(var(--seat-height) * 2 + 14px);
+  height: calc(var(--seat-height) * 2 + var(--bunk-gap));
 }
 .bunk-pair .ui-seat { position: absolute; }
 .bunk-pair-upper { left: 0; top: 0; }
-.bunk-pair-lower { left: 0; top: calc(var(--seat-height) + 14px); }
-/* 두 칸 사이 14px 틈 안에 들어가는 크기 (viewBox 비율은 그대로라 6×14로 그려진다) */
+.bunk-pair-lower { left: 0; top: calc(var(--seat-height) + var(--bunk-gap)); }
+/* 사다리는 시안대로 칸 왼쪽 끝에서 18px, 틈(12px) 한가운데에 중심을 두고
+   위아래 칸 테두리를 7.5px씩 덮는다 (7.5 + 12 + 7.5 = 27).
+   z-index로 선택 테두리(3px)·빗금 위에 올리고, 클릭은 통과시킨다. */
 .bunk-pair-ladder {
-  position: absolute; left: calc(50% - 7px); top: var(--seat-height); width: 14px; height: 14px;
-  fill: var(--ink); z-index: 1; pointer-events: none;
+  position: absolute; left: 18px;
+  top: calc(var(--seat-height) - (27px - var(--bunk-gap)) / 2);
+  width: 17px; height: 27px;
+  stroke: var(--ink); z-index: 2; pointer-events: none;
 }
 
 .grid-room-row {
@@ -120,7 +126,7 @@ tr:hover td { background: var(--surface-tint); }
   justify-items: center; margin-top: 8px;
 }
 .grid-room-row + .grid-room-row { margin-top: 30px; }
-.grid-room-cell { min-height: calc(var(--seat-height) * 2 + 14px); }
+.grid-room-cell { min-height: calc(var(--seat-height) * 2 + 12px); }
 .grid-room-floors { position: relative; width: 20px; font-size: var(--fs-seat-status); color: var(--ink-muted); }
 .grid-room-floors .floor-2f { position: absolute; left: 0; top: 45px; }
 .grid-room-floors .floor-1f { position: absolute; left: 0; top: 125px; }

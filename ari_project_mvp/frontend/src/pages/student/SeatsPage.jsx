@@ -76,6 +76,31 @@ function Ladder(props) {
   )
 }
 
+// 일반방 2층 침대의 사다리 (시안: 남학우실 일반방 1:223) — 보이는 크기 17×27.
+// 기둥 2개 + 발판 4개(위아래 끝 포함 균등), 선 3.5px에 둥근 끝.
+// 둥근 끝이 선 굵기의 절반(1.75px)만큼 밖으로 나가므로 그만큼 안쪽에서 그려야
+// viewBox 17×27를 여백 없이 꽉 채운다.
+const LADDER = { w: 17, h: 27, stroke: 3.5 }
+const LD_IN = LADDER.stroke / 2
+const LD_X2 = LADDER.w - LD_IN
+const LD_Y2 = LADDER.h - LD_IN
+const LD_RUNGS = [0, 1, 2, 3].map(i => LD_IN + ((LD_Y2 - LD_IN) / 3) * i)
+
+function BunkLadder(props) {
+  return (
+    <svg
+      viewBox={`0 0 ${LADDER.w} ${LADDER.h}`}
+      aria-hidden="true" focusable="false"
+      fill="none" strokeWidth={LADDER.stroke} strokeLinecap="round"
+      {...props}
+    >
+      <line x1={LD_IN} y1={LD_IN} x2={LD_IN} y2={LD_Y2} />
+      <line x1={LD_X2} y1={LD_IN} x2={LD_X2} y2={LD_Y2} />
+      {LD_RUNGS.map(y => <line key={y} x1={LD_IN} y1={y} x2={LD_X2} y2={y} />)}
+    </svg>
+  )
+}
+
 /** 배치도의 좌석 한 칸 — 서버 좌석 객체를 SeatTile props로 옮긴다. */
 function Seat({ seat, accessible, selected, onSelect, className = '', style, free }) {
   if (!seat) return null
@@ -108,8 +133,9 @@ function BunkPair({ pair, getSeatProps }) {
   return (
     <div className="bunk-pair">
       <Seat seat={pair[2]} className="bunk-pair-upper" {...getSeatProps(pair[2])} />
-      <Ladder className="bunk-pair-ladder" />
       <Seat seat={pair[1]} className="bunk-pair-lower" {...getSeatProps(pair[1])} />
+      {/* 두 칸 위에 겹쳐 그린다 — 클릭은 CSS의 pointer-events: none으로 통과시킨다 */}
+      <BunkLadder className="bunk-pair-ladder" />
     </div>
   )
 }
