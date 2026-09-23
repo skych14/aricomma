@@ -9,7 +9,7 @@ from database import get_db
 from models.reservation import Reservation
 from models.seat import Seat
 from models.user import User
-from schemas.seat import SeatAdminResponse, SeatCreate, SeatResponse, SeatUpdate
+from schemas.seat import SeatAdminResponse, SeatResponse, SeatUpdate
 from utils.audit import write_audit
 from utils.auth import get_current_admin, get_current_user
 from utils.expiry import expire_pending_reservations
@@ -88,62 +88,6 @@ def admin_list_seats(
             )
         )
     return result
-
-
-@router.post("/api/admin/seats", response_model=SeatAdminResponse, status_code=201)
-def create_seat(
-    body: SeatCreate,
-    request: Request,
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
-    # 좌석번호는 방(location) 안에서만 유일 — 남/여 일반방은 같은 번호를 씀
-    if (
-        db.query(Seat)
-        .filter(Seat.seat_number == body.seat_number, Seat.location == body.location)
-        .first()
-    ):
-        raise HTTPException(status_code=400, detail="같은 방에 이미 존재하는 자리 번호입니다")
-
-    seat = Seat(
-        id=str(uuid.uuid4()),
-        seat_number=body.seat_number,
-        seat_type=body.seat_type,
-        room_gender=body.room_gender,
-        location=body.location,
-        floor=body.floor,
-        bunk_group=body.bunk_group,
-        qr_token=str(uuid.uuid4()),
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
-    )
-    db.add(seat)
-    db.commit()
-    db.refresh(seat)
-
-    write_audit(
-        db,
-        action_type="SEAT_CREATE",
-        actor_id=current_admin.id,
-        target_type="seat",
-        target_id=seat.id,
-        detail={"seat_number": seat.seat_number, "seat_type": seat.seat_type, "room_gender": seat.room_gender},
-        ip_address=request.client.host if request.client else None,
-        commit=True,
-    )
-    return SeatAdminResponse(
-        id=seat.id,
-        seat_number=seat.seat_number,
-        seat_type=seat.seat_type,
-        room_gender=seat.room_gender,
-        location=seat.location,
-        floor=seat.floor,
-        bunk_group=seat.bunk_group,
-        is_active=seat.is_active,
-        current_status="available",
-        qr_token=seat.qr_token,
-        created_at=seat.created_at,
-    )
 
 
 def _to_admin_response(seat: Seat, db: Session) -> SeatAdminResponse:
@@ -284,38 +228,3 @@ def update_seat(
         qr_token=seat.qr_token,
         created_at=seat.created_at,
     )
-
-
-@router.delete("/api/admin/seats/{seat_id}", status_code=204)
-def delete_seat(
-    seat_id: str,
-    request: Request,
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
-    seat = db.query(Seat).filter(Seat.id == seat_id).first()
-    if not seat:
-        raise HTTPException(status_code=404, detail="자리를 찾을 수 없습니다")
-
-    active = (
-        db.query(Reservation)
-        .filter(
-            Reservation.seat_id == seat_id,
-            Reservation.status.in_(["pending", "checked_in"]),
-        )
-        .first()
-    )
-    if active:
-        raise HTTPException(status_code=400, detail="현재 이용 중인 자리는 삭제할 수 없습니다")
-
-    write_audit(
-        db,
-        action_type="SEAT_DELETE",
-        actor_id=current_admin.id,
-        target_type="seat",
-        target_id=seat_id,
-        detail={"seat_number": seat.seat_number},
-        ip_address=request.client.host if request.client else None,
-    )
-    db.delete(seat)
-    db.commit()

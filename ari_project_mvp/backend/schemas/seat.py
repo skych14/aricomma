@@ -4,15 +4,6 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class SeatCreate(BaseModel):
-    seat_number: str
-    seat_type: str  # bed
-    room_gender: str  # male | female
-    location: str
-    floor: int = Field(ge=1, le=2)  # 1(아래 침대) | 2(위 침대)
-    bunk_group: str  # 사다리를 공유하는 침대 한 쌍 (예: A1, B1)
-
-
 class SeatUpdate(BaseModel):
     seat_number: Optional[str] = None
     seat_type: Optional[str] = None

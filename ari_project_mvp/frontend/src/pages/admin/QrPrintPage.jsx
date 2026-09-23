@@ -102,10 +102,6 @@ export default function QrPrintPage() {
         {error && <Notice tone="danger">{error}</Notice>}
         {msg && <Notice tone="success">{msg}</Notice>}
 
-        <Notice tone="info">
-          QR에는 자리의 <strong>qr_token</strong> 값만 들어갑니다. 인쇄 후 잘라서 해당 침대에 부착하세요.
-        </Notice>
-
         <div className="qr-print-toolbar">
           {FILTERS.map(f => (
             <Button key={f.key} size="sm" aria-pressed={filter === f.key}
@@ -141,7 +137,6 @@ export default function QrPrintPage() {
                   <QRCodeSVG value={s.qr_token} level="M" size={132} includeMargin />
                 </div>
                 <div className="qr-card-name">{s.location} <span className="seat-no">{s.seat_number}</span></div>
-                <div className="qr-card-floor">{s.floor}층 ({s.floor === 1 ? '아래 침대' : '위 침대'})</div>
                 <div className="qr-card-actions no-print">
                   <Button size="sm" variant="ghost" disabled={busyId !== null}
                     loading={busyId === s.id} onClick={() => setConfirming(s)}>

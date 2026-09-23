@@ -253,14 +253,9 @@ function VerificationsTab({ onPendingCount }) {
 }
 
 // ── 탭 2: 좌석 관리 ─────────────────────────────────────────────────────
-const EMPTY_SEAT = { seat_number: '', seat_type: 'bed', room_gender: 'male', location: '', floor: 1, bunk_group: '' }
-
 function SeatsTab() {
   const [seats, setSeats] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState(EMPTY_SEAT)
-  const [deleting, setDeleting] = useState(null)   // 삭제 확인창 대상 좌석
-  const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
   const load = async () => {
@@ -271,24 +266,6 @@ function SeatsTab() {
 
   useEffect(() => { load() }, [])
 
-  const handleCreate = async (e) => {
-    e.preventDefault()
-    setError(''); setMsg('')
-    try {
-      await seatApi.create(form)
-      setMsg('자리가 추가되었습니다')
-      setForm(EMPTY_SEAT)
-      load()
-    } catch (e) { setError(errMsg(e)) }
-  }
-
-  const handleDelete = async () => {
-    const seat = deleting
-    setDeleting(null)
-    try { await seatApi.delete(seat.id); load() }
-    catch (e) { setError(errMsg(e)) }
-  }
-
   const toggleActive = async (seat) => {
     try { await seatApi.update(seat.id, { is_active: !seat.is_active }); load() }
     catch (e) { setError(errMsg(e)) }
@@ -296,40 +273,13 @@ function SeatsTab() {
 
   return (
     <div>
-      {msg && <Notice tone="success">{msg}</Notice>}
       {error && <Notice tone="danger">{error}</Notice>}
-
-      <Card as="form" title="자리 추가" className="seat-form" onSubmit={handleCreate}>
-        <TextField inline className="seat-form-num" aria-label="자리 번호"
-          placeholder="번호 (A1-1)" value={form.seat_number}
-          onChange={e => setForm({ ...form, seat_number: e.target.value })} required />
-        <span className="seat-form-type"><IconSeat size={ICON} aria-hidden="true" /> 침대</span>
-        <TextField as="select" inline className="seat-form-gender" aria-label="학우실"
-          value={form.room_gender}
-          onChange={e => setForm({ ...form, room_gender: e.target.value })}>
-          <option value="male">남학우실</option>
-          <option value="female">여학우실</option>
-        </TextField>
-        <TextField inline className="seat-form-location" aria-label="방"
-          placeholder="방 (남학우실 일반방)" value={form.location}
-          onChange={e => setForm({ ...form, location: e.target.value })} required />
-        <TextField as="select" inline className="seat-form-floor" aria-label="층"
-          value={form.floor}
-          onChange={e => setForm({ ...form, floor: Number(e.target.value) })}>
-          <option value={1}>1층</option>
-          <option value={2}>2층</option>
-        </TextField>
-        <TextField inline className="seat-form-bunk" aria-label="침대조"
-          placeholder="침대조 (A1)" value={form.bunk_group}
-          onChange={e => setForm({ ...form, bunk_group: e.target.value })} required />
-        <Button type="submit">추가</Button>
-      </Card>
 
       {loading ? <LoadingBox /> : (
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th><th>삭제</th></tr>
+              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th></tr>
             </thead>
             <tbody>
               {seats.map(s => (
@@ -350,9 +300,6 @@ function SeatsTab() {
                       {s.is_active ? '활성' : '비활성'}
                     </Button>
                   </td>
-                  <td>
-                    <Button size="sm" variant="danger" onClick={() => setDeleting(s)}>삭제</Button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -364,17 +311,6 @@ function SeatsTab() {
         QR 스티커는 상단의 QR 인쇄 화면에서 인쇄하세요.
         학생은 예약 후 현장에서 이 QR을 카메라로 스캔하여 체크인합니다.
       </Notice>
-
-      {deleting && (
-        <ConfirmDialog
-          title="자리를 삭제할까요?"
-          description={`${deleting.seat_number} 자리를 삭제합니다. 되돌릴 수 없습니다.`}
-          confirmLabel="삭제"
-          tone="danger"
-          onConfirm={handleDelete}
-          onCancel={() => setDeleting(null)}
-        />
-      )}
     </div>
   )
 }

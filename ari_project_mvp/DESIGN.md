@@ -202,9 +202,7 @@ created_at    DATETIME
 | 메서드 | 경로 | 권한 |
 |---|---|---|
 | GET | /api/seats | 로그인 |
-| POST | /api/admin/seats | admin |
 | PUT | /api/admin/seats/{id} | admin |
-| DELETE | /api/admin/seats/{id} | admin |
 
 ### 예약
 | 메서드 | 경로 | 권한 |
