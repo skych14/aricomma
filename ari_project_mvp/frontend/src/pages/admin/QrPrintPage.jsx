@@ -6,21 +6,17 @@ import {
   Button, Card, ConfirmDialog, EmptyState, LoadingBox, Notice, PageTitle,
 } from '../../components/ui/index.js'
 import { IconBack, IconPrint } from '../../components/ui/icons.jsx'
-import { errMsg } from '../../utils/helpers.js'
+import {
+  FEMALE_CAVE_ROOM, FEMALE_ROOM, MALE_ROOM, compareSeatsByRoom, errMsg,
+} from '../../utils/helpers.js'
 
-const MALE_ROOM = '남학우실 일반방'
-const FEMALE_ROOM = '여학우실 일반방'
-const FEMALE_CAVE_ROOM = '여학우실 굴방'
 const ICON = 16
-
-// 인쇄 순서: 남학우실 일반방 → 여학우실 일반방 → 여학우실 굴방
-const ROOM_ORDER = [MALE_ROOM, FEMALE_ROOM, FEMALE_CAVE_ROOM]
 
 const FILTERS = [
   { key: 'all', label: '전체' },
-  { key: MALE_ROOM, label: '남학우실' },
+  { key: MALE_ROOM, label: '남학우실 일반방' },
   { key: FEMALE_ROOM, label: '여학우실 일반방' },
-  { key: FEMALE_CAVE_ROOM, label: '굴방' },
+  { key: FEMALE_CAVE_ROOM, label: '여학우실 굴방' },
 ]
 
 const ROTATE_CONFIRM =
@@ -49,17 +45,15 @@ export default function QrPrintPage() {
 
   useEffect(() => { load() }, [load])
 
-  // 방별로 묶고, 방 안에서는 seat_number 순
+  // 방별로 묶고(순서는 compareSeatsByRoom — 자리 관리 표와 같음), 방 안에서는 seat_number 순
   const groups = useMemo(() => {
     const visible = filter === 'all' ? seats : seats.filter(s => s.location === filter)
-    const known = ROOM_ORDER.filter(room => visible.some(s => s.location === room))
-    const others = [...new Set(visible.map(s => s.location))].filter(r => !ROOM_ORDER.includes(r))
-    return [...known, ...others].map(room => ({
-      room,
-      seats: visible
-        .filter(s => s.location === room)
-        .sort((a, b) => a.seat_number.localeCompare(b.seat_number, 'ko', { numeric: true })),
-    }))
+    const byRoom = new Map()
+    for (const s of [...visible].sort(compareSeatsByRoom)) {
+      if (!byRoom.has(s.location)) byRoom.set(s.location, [])
+      byRoom.get(s.location).push(s)
+    }
+    return [...byRoom].map(([room, roomSeats]) => ({ room, seats: roomSeats }))
   }, [seats, filter])
 
   const rotateOne = async (seat) => {
@@ -97,6 +91,11 @@ export default function QrPrintPage() {
   return (
     <div>
       <div className="no-print">
+        <div className="page-back">
+          <Button size="sm" variant="ghost" onClick={() => navigate('/admin')}>
+            <IconBack size={ICON} aria-hidden="true" /> 관리자 대시보드
+          </Button>
+        </div>
         <PageTitle>QR 인쇄</PageTitle>
 
         {error && <Notice tone="danger">{error}</Notice>}
@@ -120,9 +119,6 @@ export default function QrPrintPage() {
           <Button size="sm" variant="secondary" disabled={busyId !== null}
             loading={busyId === '__all__'} onClick={() => setConfirming('__all__')}>
             {busyId === '__all__' ? '재발급 중...' : '전체 재발급'}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => navigate('/admin')}>
-            <IconBack size={ICON} aria-hidden="true" /> 관리자 대시보드
           </Button>
         </div>
       </div>

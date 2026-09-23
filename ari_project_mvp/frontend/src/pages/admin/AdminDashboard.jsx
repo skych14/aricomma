@@ -7,10 +7,10 @@ import {
 } from '../../components/ui/index.js'
 import {
   IconCopy, IconDone, IconFile, IconHistory, IconPassword, IconPrint,
-  IconSearch, IconSeat,
+  IconSearch,
 } from '../../components/ui/icons.jsx'
 import {
-  PENALTY_LEVELS, errMsg, fmtDate, fmtDatetime, fmtTime, parseUTC,
+  PENALTY_LEVELS, compareSeatsByRoom, errMsg, fmtDate, fmtDatetime, fmtTime, parseUTC,
   penaltyLevelLabel, statusLabel,
 } from '../../utils/helpers.js'
 
@@ -259,7 +259,7 @@ function SeatsTab() {
   const [error, setError] = useState('')
 
   const load = async () => {
-    try { const r = await seatApi.adminList(); setSeats(r.data) }
+    try { const r = await seatApi.adminList(); setSeats([...r.data].sort(compareSeatsByRoom)) }
     catch (e) { setError(errMsg(e)) }
     finally { setLoading(false) }
   }
@@ -279,13 +279,12 @@ function SeatsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>번호</th><th>종류</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th></tr>
+              <tr><th>번호</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th></tr>
             </thead>
             <tbody>
               {seats.map(s => (
                 <tr key={s.id}>
                   <td><strong>{s.seat_number}</strong></td>
-                  <td className="cell-icon"><IconSeat size={ICON} aria-hidden="true" /> 침대</td>
                   <td>
                     <StatusBadge tone={s.room_gender === 'male' ? 'brand' : 'neutral'}
                       label={s.room_gender === 'male' ? '남학우실' : '여학우실'} />

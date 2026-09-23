@@ -73,6 +73,21 @@ const STATUS_KO = {
   available: '이용 가능',
   reserved: '예약 중',
   occupied: '이용 중',
+  inactive: '사용 중지',
+}
+
+// 방 이름과 표시 순서 — 관리자 자리 관리 표와 QR 인쇄 화면이 같이 쓴다
+export const MALE_ROOM = '남학우실 일반방'
+export const FEMALE_ROOM = '여학우실 일반방'
+export const FEMALE_CAVE_ROOM = '여학우실 굴방'
+export const ROOM_ORDER = [MALE_ROOM, FEMALE_ROOM, FEMALE_CAVE_ROOM]
+
+// 방 순서(ROOM_ORDER, 그 외 방은 뒤에 이름순) → 방 안에서는 seat_number 순
+export function compareSeatsByRoom(a, b) {
+  const rank = loc => { const i = ROOM_ORDER.indexOf(loc); return i === -1 ? ROOM_ORDER.length : i }
+  return rank(a.location) - rank(b.location)
+    || a.location.localeCompare(b.location, 'ko')
+    || a.seat_number.localeCompare(b.seat_number, 'ko', { numeric: true })
 }
 
 export function statusLabel(s) {

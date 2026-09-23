@@ -294,6 +294,7 @@ tr:hover td { background: var(--surface-tint); }
 .seat-no { white-space: nowrap; }
 
 /* ── 관리자 QR 인쇄 ─────────────────────────────────────── */
+.page-back { margin-bottom: var(--space-2); }
 .qr-print-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
 .qr-room-group { margin-bottom: 22px; }
 .qr-room-title { font-size: var(--fs-title); font-weight: 700; color: var(--ink); margin-bottom: 10px; }
@@ -583,7 +584,6 @@ tr:hover td { background: var(--surface-tint); }
 .user-search { flex: 1; min-width: 150px; }
 
 /* 관리자 표 안의 작은 조각 */
-.cell-icon { display: flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
 .cell-code { font-size: var(--fs-seat-status); }
 .cell-id { font-size: var(--fs-seat-status); }
 
