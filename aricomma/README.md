@@ -10,7 +10,7 @@
 
 ```bash
 # 1. 프로젝트 디렉토리 이동
-cd /workspaces/test/ari_project_mvp
+cd /workspaces/aricomma/aricomma
 
 # 2. 한 번에 설정 + 실행
 make setup   # 의존성 설치 + 환경변수 파일 생성 + seed 데이터
@@ -160,7 +160,7 @@ SQLAlchemy ORM 기반으로 작성되어 DB 코드 변경 없이 전환됩니다
 ## 프로젝트 구조
 
 ```
-ari_project_mvp/
+aricomma/
 ├── backend/
 │   ├── main.py          # FastAPI 앱 진입점
 │   ├── config.py        # 환경변수 설정

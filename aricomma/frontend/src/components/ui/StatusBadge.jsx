@@ -7,7 +7,7 @@ import { statusLabel } from '../../utils/helpers.js'
 const TONES = {
   // 끝난 것 · 정상
   approved: 'ok', completed: 'ok', checked_in: 'ok', available: 'ok',
-  penalized: 'ok', checkout: 'ok', checkin: 'ok',
+  penalized: 'ok', checkout: 'ok', checkin: 'ok', checked_out: 'ok',
   // 기다리는 중
   pending: 'wait', reserved: 'wait-hatch',
   // 안 된 것

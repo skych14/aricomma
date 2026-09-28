@@ -35,13 +35,15 @@ fly auth login
 ### 1-1. 앱 생성
 
 ```bash
-cd /workspaces/test/ari_project_mvp/backend
+cd /workspaces/aricomma/aricomma/backend
 
-# 앱 이름은 전 세계 고유해야 함 (예: ari-project-mvp-YOUR_NAME)
-fly apps create ari-project-mvp
+# 앱 이름은 전 세계 고유해야 함
+fly apps create ari-shuimpyo-demo
 ```
 
-> `fly.toml`의 `app = "ari-project-mvp"` 값을 실제 생성된 앱 이름으로 변경하세요.
+> 운영 중인 앱은 `ari-shuimpyo-demo`이고 `fly.toml`의 `app` 값도 같습니다.
+> 1-1·1-2(앱·볼륨 생성)는 처음 한 번만 하는 단계라 이미 만들어진 지금은 다시 실행하지 마세요
+> (특히 볼륨 생성을 다시 하면 빈 볼륨이 하나 더 생깁니다).
 
 ### 1-2. 영구 볼륨 생성
 
@@ -50,12 +52,12 @@ SQLite DB 파일과 인증자료 업로드 파일을 저장하는 볼륨입니�
 ```bash
 # nrt = 도쿄 (한국에서 가장 가까운 리전)
 # --size 1 = 1GB (파일럿 용도로 충분)
-fly volumes create ari_data --region nrt --size 1 --app ari-project-mvp
+fly volumes create ari_data --region nrt --size 1 --app ari-shuimpyo-demo
 ```
 
 볼륨 확인:
 ```bash
-fly volumes list --app ari-project-mvp
+fly volumes list --app ari-shuimpyo-demo
 ```
 
 ### 1-3. 시크릿 설정
@@ -65,13 +67,13 @@ fly volumes list --app ari-project-mvp
 ```bash
 # SECRET_KEY: 반드시 긴 랜덤 문자열 사용
 fly secrets set SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
-  --app ari-project-mvp
+  --app ari-shuimpyo-demo
 
 # 초기 관리자 계정 (배포 후 seed 실행 전 설정)
 fly secrets set ADMIN_EMAIL="admin@ari.ac.kr" \
   ADMIN_PASSWORD="여기에강한비밀번호입력" \
   ADMIN_NAME="관리자" \
-  --app ari-project-mvp
+  --app ari-shuimpyo-demo
 ```
 
 ### 1-4. CORS 설정 (Cloudflare Pages 도메인 추가)
@@ -79,35 +81,35 @@ fly secrets set ADMIN_EMAIL="admin@ari.ac.kr" \
 Cloudflare Pages 배포 후 생성된 도메인으로 업데이트합니다.
 
 ```bash
-# Pages 도메인 확인 후 실행 (예: https://ari-project-mvp.pages.dev)
+# Pages 도메인 확인 후 실행 (예: https://ari-shuimpyo-demo.pages.dev)
 fly secrets set \
-  CORS_ORIGINS="https://ari-project-mvp.pages.dev,http://localhost:5173" \
-  --app ari-project-mvp
+  CORS_ORIGINS="https://ari-shuimpyo-demo.pages.dev,http://localhost:5173" \
+  --app ari-shuimpyo-demo
 ```
 
 또는 `fly.toml`의 `[env]` 섹션에서 수정 후 재배포:
 ```toml
 [env]
-  CORS_ORIGINS = "https://ari-project-mvp.pages.dev,http://localhost:5173"
+  CORS_ORIGINS = "https://ari-shuimpyo-demo.pages.dev,http://localhost:5173"
 ```
 
 ### 1-5. 배포
 
 ```bash
-cd /workspaces/test/ari_project_mvp/backend
-fly deploy --app ari-project-mvp
+cd /workspaces/aricomma/aricomma/backend
+fly deploy --app ari-shuimpyo-demo
 ```
 
 배포 로그 확인:
 ```bash
-fly logs --app ari-project-mvp
+fly logs --app ari-shuimpyo-demo
 ```
 
 ### 1-6. Seed 데이터 생성
 
 ```bash
 # 배포된 컨테이너에서 seed.py 실행
-fly ssh console --app ari-project-mvp
+fly ssh console --app ari-shuimpyo-demo
 # 컨테이너 내부에서:
 cd /app && python seed.py
 exit
@@ -115,7 +117,7 @@ exit
 
 또는 원격 실행:
 ```bash
-fly ssh console --app ari-project-mvp --command "python /app/seed.py"
+fly ssh console --app ari-shuimpyo-demo --command "python /app/seed.py"
 ```
 
 > `seed.py`는 관리자 계정과 좌석만 만듭니다.
@@ -127,7 +129,7 @@ fly ssh console --app ari-project-mvp --command "python /app/seed.py"
 운영 서버의 스크립트는 모두 Fly 컨테이너 안에서 실행합니다.
 
 ```bash
-fly ssh console --app ari-project-mvp
+fly ssh console --app ari-shuimpyo-demo
 # 컨테이너 내부에서:
 cd /app
 python scripts/<스크립트>.py
@@ -142,7 +144,7 @@ exit
 
 ```bash
 # 예: 관리자 비밀번호 변경 (입력값은 화면에 표시되지 않음)
-fly ssh console --app ari-project-mvp
+fly ssh console --app ari-shuimpyo-demo
 cd /app
 python scripts/set_admin_password.py
 #   관리자 이메일 [admin@ari.ac.kr]:
@@ -157,19 +159,19 @@ exit
 >
 > 나머지 둘은 원격 실행도 가능합니다:
 > ```bash
-> fly ssh console --app ari-project-mvp --command "sh -c 'cd /app && python scripts/remove_test_users.py'"
+> fly ssh console --app ari-shuimpyo-demo --command "sh -c 'cd /app && python scripts/remove_test_users.py'"
 > ```
 
 ### 1-8. 백엔드 URL 확인
 
 ```bash
-fly status --app ari-project-mvp
-# Hostname: ari-project-mvp.fly.dev
+fly status --app ari-shuimpyo-demo
+# Hostname: ari-shuimpyo-demo.fly.dev
 ```
 
 헬스 체크:
 ```bash
-curl https://ari-project-mvp.fly.dev/health
+curl https://ari-shuimpyo-demo.fly.dev/health
 # {"status":"ok"}
 ```
 
@@ -195,7 +197,7 @@ curl https://ari-project-mvp.fly.dev/health
 
 | 변수명 | 값 |
 |---|---|
-| `VITE_API_URL` | `https://ari-project-mvp.fly.dev` |
+| `VITE_API_URL` | `https://ari-shuimpyo-demo.fly.dev` |
 
 6. Save and Deploy
 
@@ -203,21 +205,21 @@ curl https://ari-project-mvp.fly.dev/health
 
 ```bash
 # 빌드
-cd /workspaces/test/ari_project_mvp/frontend
-VITE_API_URL=https://ari-project-mvp.fly.dev npm run build
+cd /workspaces/aricomma/aricomma/frontend
+VITE_API_URL=https://ari-shuimpyo-demo.fly.dev npm run build
 
 # Wrangler CLI로 업로드
 npm install -g wrangler
-wrangler pages deploy dist --project-name ari-project-mvp
+wrangler pages deploy dist --project-name ari-shuimpyo-demo
 ```
 
 ### 방법 C: Cloudflare Pages CLI (wrangler)
 
 ```bash
-cd /workspaces/test/ari_project_mvp/frontend
-npx wrangler pages project create ari-project-mvp
-VITE_API_URL=https://ari-project-mvp.fly.dev npm run build
-npx wrangler pages deploy dist --project-name ari-project-mvp
+cd /workspaces/aricomma/aricomma/frontend
+npx wrangler pages project create ari-shuimpyo-demo
+VITE_API_URL=https://ari-shuimpyo-demo.fly.dev npm run build
+npx wrangler pages deploy dist --project-name ari-shuimpyo-demo
 ```
 
 ---
@@ -228,17 +230,17 @@ npx wrangler pages deploy dist --project-name ari-project-mvp
 
 ```bash
 # 백엔드
-curl https://ari-project-mvp.fly.dev/health
+curl https://ari-shuimpyo-demo.fly.dev/health
 
 # 프론트엔드 (브라우저에서)
-open https://ari-project-mvp.pages.dev
+open https://ari-shuimpyo-demo.pages.dev
 ```
 
 ### 기능 테스트 시나리오
 
 ```
 1. 회원가입 + 로그인
-   → https://ari-project-mvp.pages.dev/register
+   → https://ari-shuimpyo-demo.pages.dev/register
 
 2. 학생 인증자료 제출
    → /verify → 파일 업로드
@@ -260,9 +262,9 @@ open https://ari-project-mvp.pages.dev
 브라우저 개발자 도구에서 CORS 오류가 보이면:
 ```bash
 # Cloudflare Pages 도메인을 CORS_ORIGINS에 추가
-fly secrets set CORS_ORIGINS="https://ari-project-mvp.pages.dev,http://localhost:5173" \
-  --app ari-project-mvp
-fly deploy --app ari-project-mvp  # 재배포 필요
+fly secrets set CORS_ORIGINS="https://ari-shuimpyo-demo.pages.dev,http://localhost:5173" \
+  --app ari-shuimpyo-demo
+fly deploy --app ari-shuimpyo-demo  # 재배포 필요
 ```
 
 ---
@@ -272,7 +274,7 @@ fly deploy --app ari-project-mvp  # 재배포 필요
 ### 볼륨 상태 확인
 
 ```bash
-fly volumes list --app ari-project-mvp
+fly volumes list --app ari-shuimpyo-demo
 ```
 
 ### DB 백업 (SQLite)
@@ -280,17 +282,17 @@ fly volumes list --app ari-project-mvp
 ```bash
 # 로컬로 DB 파일 복사
 fly ssh sftp get /data/ari_project.db ./backup_$(date +%Y%m%d).db \
-  --app ari-project-mvp
+  --app ari-shuimpyo-demo
 
 # 또는 컨테이너 접속 후 수동 백업
-fly ssh console --app ari-project-mvp
+fly ssh console --app ari-shuimpyo-demo
 cp /data/ari_project.db /data/ari_project.db.bak
 ```
 
 ### 볼륨 크기 확장
 
 ```bash
-fly volumes extend <volume-id> --size 5 --app ari-project-mvp
+fly volumes extend <volume-id> --size 5 --app ari-shuimpyo-demo
 ```
 
 ---
@@ -334,11 +336,11 @@ fly volumes extend <volume-id> --size 5 --app ari-project-mvp
 ```bash
 # Supabase, Railway, Neon 등에서 PostgreSQL URL 발급 후:
 fly secrets set DATABASE_URL="postgresql://user:pass@host:5432/ari_db" \
-  --app ari-project-mvp
+  --app ari-shuimpyo-demo
 
 # psycopg2 설치 (requirements.txt에 추가)
 echo "psycopg2-binary" >> backend/requirements.txt
-fly deploy --app ari-project-mvp
+fly deploy --app ari-shuimpyo-demo
 ```
 
 ### 파일 저장: Fly.io 볼륨 → Cloudflare R2 (또는 AWS S3)

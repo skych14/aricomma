@@ -94,6 +94,19 @@ export function statusLabel(s) {
   return STATUS_KO[s] || s
 }
 
+// 이용 로그(UsageLog)의 action은 예약 '상태'가 아니라 '사건'이라 따로 둔다
+const ACTION_KO = {
+  reserved: '예약',
+  checked_in: '체크인',
+  checked_out: '퇴실',
+  cancelled: '예약 취소',
+  expired: '만료',
+}
+
+export function actionLabel(a) {
+  return ACTION_KO[a] || a
+}
+
 export function errMsg(e) {
   return e?.response?.data?.detail || e?.message || '오류가 발생했습니다'
 }

@@ -11,7 +11,7 @@ import {
 } from '../../components/ui/icons.jsx'
 import {
   PENALTY_LEVELS, compareSeatsByRoom, errMsg, fmtDate, fmtDatetime, fmtTime, parseUTC,
-  penaltyLevelLabel, statusLabel,
+  actionLabel, penaltyLevelLabel, statusLabel,
 } from '../../utils/helpers.js'
 
 const ICON = 16
@@ -381,7 +381,7 @@ function ReservationsTab() {
                   <td>{fmtDatetime(l.performed_at)}</td>
                   <td>{l.user_name || '—'}</td>
                   <td>{l.seat_number || '—'}</td>
-                  <td><StatusBadge status={l.action} /></td>
+                  <td><StatusBadge status={l.action} label={actionLabel(l.action)} /></td>
                   <td className="text-muted">{l.note || '—'}</td>
                 </tr>
               ))}

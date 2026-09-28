@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'ari_project_mvp/backend/**'
+      - 'aricomma/backend/**'
 
 jobs:
   deploy:
@@ -18,7 +18,7 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io
-        working-directory: ari_project_mvp/backend
+        working-directory: aricomma/backend
         run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
