@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import models  # noqa: F401  — create_all이 모든 테이블을 알도록 모델을 먼저 등록
-from config import settings
+from config import secret_key_problem, settings
 from database import Base, engine
 from routers import (
     admin_reports,
@@ -25,8 +25,26 @@ from scheduler import start_scheduler, stop_scheduler
 from utils.db_migrate import run_migrations
 
 
+SECRET_KEY_MISSING = "SECRET_KEY가 설정되지 않았습니다. fly secrets set SECRET_KEY=... 를 먼저 실행하세요"
+
+
+def check_secret_key() -> None:
+    """운영(ENABLE_DOCS 꺼짐)에서 SECRET_KEY가 기본값이거나 짧으면 서버를 띄우지 않는다.
+
+    시크릿 설정을 빠뜨린 채 배포되면 누구나 관리자 토큰을 위조할 수 있기 때문.
+    로컬(ENABLE_DOCS=true)에서는 개발을 막지 않도록 경고만 찍는다.
+    """
+    problem = secret_key_problem()
+    if problem is None:
+        return
+    if not settings.enable_docs:
+        raise RuntimeError(SECRET_KEY_MISSING)
+    print(f"경고: SECRET_KEY가 {problem} — 로컬 개발에서만 허용됩니다")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    check_secret_key()
     # 시작 시: 업로드 디렉토리 보장 (Fly.io 볼륨 마운트 후 첫 실행 시에도 생성)
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)

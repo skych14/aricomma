@@ -54,21 +54,18 @@ SEATS = [
 def admin_password() -> str | None:
     """관리자 계정에 쓸 비밀번호. 쓸 수 없으면 이유를 찍고 None.
 
-    운영에서 기본 비밀번호가 붙은 관리자 계정이 생기는 일을 막는 것이 목적이다.
-    ADMIN_PASSWORD가 있으면 가입 화면과 같은 규칙으로 검사하고, 없으면
-    로컬 개발(ENABLE_DOCS=true)에서만 개발용 기본값을 쓴다.
+    기본 비밀번호는 없다 — ADMIN_PASSWORD(환경변수 또는 .env)가 있어야만
+    관리자를 만든다. 값은 가입 화면과 같은 규칙으로 검사한다.
     """
-    given = os.environ.get("ADMIN_PASSWORD")
-    if given:
-        error = password_error(given)
-        if error:
-            print(f"  경고: ADMIN_PASSWORD가 규칙에 어긋납니다 — {error}")
-            return None
-        return given
-    if settings.enable_docs:
-        print("  경고: ADMIN_PASSWORD가 없어 개발용 기본값을 씁니다 (운영에서는 쓰지 마세요)")
-        return settings.admin_password
-    return None
+    given = os.environ.get("ADMIN_PASSWORD") or settings.admin_password
+    if not given:
+        print("  경고: ADMIN_PASSWORD가 없어 관리자 계정을 만들지 않습니다")
+        return None
+    error = password_error(given)
+    if error:
+        print(f"  경고: ADMIN_PASSWORD가 규칙에 어긋납니다 — {error}")
+        return None
+    return given
 
 
 def run():

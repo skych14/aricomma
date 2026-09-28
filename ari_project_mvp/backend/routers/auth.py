@@ -32,7 +32,14 @@ from utils.login_guard import (
     record_success,
 )
 from utils.password_policy import password_error
-from utils.rate_limit import client_ip, too_many_requests
+from utils.rate_limit import (
+    SPRAY_BLOCK_SECONDS,
+    SPRAY_MAX_FAILURES,
+    client_ip,
+    login_spray_check,
+    record_login_failure,
+    too_many_requests,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -54,6 +61,23 @@ def _guard_rate(request: Request, db: Session) -> str:
         )
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=RATE_LIMITED)
     return ip
+
+
+def _guard_spray(ip: str, db: Session) -> None:
+    """서버 전체 로그인 실패가 몰리면 잠시 로그인을 받지 않는다 (로그인에만 적용)."""
+    blocked, started = login_spray_check()
+    if started:
+        write_audit(
+            db,
+            action_type="LOGIN_SPRAY_BLOCKED",
+            target_type="ip",
+            target_id=ip,
+            detail={"threshold": SPRAY_MAX_FAILURES, "block_seconds": SPRAY_BLOCK_SECONDS},
+            ip_address=ip,
+            commit=True,
+        )
+    if blocked:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=RATE_LIMITED)
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
@@ -101,12 +125,14 @@ def register(body: UserCreate, request: Request, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(body: UserLogin, request: Request, db: Session = Depends(get_db)):
     ip = _guard_rate(request, db)
+    _guard_spray(ip, db)
     now = datetime.utcnow()
     user = db.query(User).filter(User.email == body.email).first()
 
     # 없는 이메일도 같은 문구로 돌려보낸다. 잠금 카운트는 올리지 않는다
     # (없는 주소를 두드려서 남의 계정을 잠그게 할 수 없도록).
     if not user:
+        record_login_failure()
         write_audit(
             db,
             action_type="LOGIN_FAILED",
@@ -134,6 +160,7 @@ def login(body: UserLogin, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=423, detail=locked_message(locked, now))
 
     if not verify_password(body.password, user.hashed_password):
+        record_login_failure()
         just_locked = record_failure(user, now)
         db.commit()
         write_audit(

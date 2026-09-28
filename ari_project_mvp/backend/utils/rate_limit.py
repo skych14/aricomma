@@ -56,3 +56,46 @@ def too_many_requests(ip: str) -> bool:
         q.append(now)
         return False
 
+
+
+# ── 로그인 실패 총량 (비밀번호 스프레이 방어) ─────────────────────
+# 계정 잠금(10회)은 "한 계정에 여러 번"만 막는다. 여러 계정에 흔한 비밀번호를
+# 한 번씩만 넣어 보는 스프레이는 계정마다 1회라 잠금에 걸리지 않고, IP를 바꿔 가면
+# 위의 IP 제한도 피한다. 그래서 IP·계정과 무관하게 서버 전체 실패 횟수를 센다.
+SPRAY_WINDOW_SECONDS = 600
+# 이용자 100명 규모에서 정상적인 오타는 10분에 몇 번 수준이다. 10분 동안 전체
+# 실패가 100회라면 한 명꼴로 한 번씩 틀린 셈이라 정상 사용으로는 나오기 어렵다.
+SPRAY_MAX_FAILURES = 100
+# 차단이 걸리면 이 시간 동안 로그인 요청을 받지 않는다. 창 길이와 같게 두면
+# 차단이 풀릴 때쯤 그 전의 실패 기록도 창 밖으로 빠져 카운터가 비워진다.
+SPRAY_BLOCK_SECONDS = SPRAY_WINDOW_SECONDS
+
+_login_failures: deque = deque()
+_spray_blocked_until = 0.0
+
+
+def record_login_failure() -> None:
+    """로그인 실패(없는 이메일·틀린 비밀번호) 때 부른다. 성공 때는 부르지 않는다."""
+    now = time.monotonic()
+    with _lock:
+        _login_failures.append(now)
+        while _login_failures and _login_failures[0] <= now - SPRAY_WINDOW_SECONDS:
+            _login_failures.popleft()
+
+
+def login_spray_check() -> tuple[bool, bool]:
+    """로그인 요청 앞에서 부른다. (막아야 하는가, 이번에 막기 시작했는가).
+
+    두 번째 값은 차단 구간이 시작되는 요청에서만 True — 감사 로그를 한 번만 남기려는 것.
+    """
+    global _spray_blocked_until
+    now = time.monotonic()
+    with _lock:
+        if now < _spray_blocked_until:
+            return True, False
+        while _login_failures and _login_failures[0] <= now - SPRAY_WINDOW_SECONDS:
+            _login_failures.popleft()
+        if len(_login_failures) >= SPRAY_MAX_FAILURES:
+            _spray_blocked_until = now + SPRAY_BLOCK_SECONDS
+            return True, True
+        return False, False

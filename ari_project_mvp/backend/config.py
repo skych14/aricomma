@@ -1,9 +1,19 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
+
+# 공개 저장소에 그대로 있는 값들 — 이 값으로 서명한 토큰은 누구나 위조할 수 있다
+DEFAULT_SECRET_KEY = "change-me-in-production"
+KNOWN_PLACEHOLDER_SECRETS = {
+    DEFAULT_SECRET_KEY,
+    "change-me-in-production-use-long-random-string",  # .env.example의 값
+}
+MIN_SECRET_KEY_LENGTH = 32
 
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./ari_project.db"
-    secret_key: str = "change-me-in-production"
+    secret_key: str = DEFAULT_SECRET_KEY
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440  # 24시간
 
@@ -23,9 +33,9 @@ class Settings(BaseSettings):
     enable_docs: bool = False
 
     admin_email: str = "admin@ari.ac.kr"
-    # 개발용 기본값. 운영에서는 ADMIN_PASSWORD 시크릿을 반드시 설정한다 —
-    # 값이 없으면 seed가 관리자를 만들지 않는다 (backend/scripts/README.md 참고).
-    admin_password: str = "admin1234"
+    # 기본값 없음. ADMIN_PASSWORD(운영은 fly secrets, 로컬은 .env)가 없으면
+    # seed가 관리자를 만들지 않는다 (backend/scripts/README.md 참고).
+    admin_password: Optional[str] = None
     admin_name: str = "관리자"
 
     class Config:
@@ -33,3 +43,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def secret_key_problem() -> str | None:
+    """SECRET_KEY가 쓸 수 없는 값이면 그 이유를, 괜찮으면 None."""
+    if settings.secret_key in KNOWN_PLACEHOLDER_SECRETS:
+        return "기본값(공개된 값)입니다"
+    if len(settings.secret_key) < MIN_SECRET_KEY_LENGTH:
+        return f"{MIN_SECRET_KEY_LENGTH}자 미만입니다"
+    return None

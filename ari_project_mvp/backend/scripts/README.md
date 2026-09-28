@@ -92,7 +92,6 @@ python scripts/set_admin_password.py
 ### 5. 마무리 확인
 
 - `ENABLE_DOCS` 가 설정돼 있지 않은지 확인한다 (운영에서 `/docs` 는 404여야 한다).
-  이 값이 true면 `ADMIN_PASSWORD` 없이도 개발용 기본 비밀번호로 관리자가 만들어진다.
 
   ```bash
   fly secrets list           # ENABLE_DOCS 가 없어야 한다

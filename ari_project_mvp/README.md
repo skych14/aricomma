@@ -49,7 +49,7 @@ npm run dev               # http://localhost:5173
 
 | 역할 | 이메일 | 비밀번호 | 상태 |
 |---|---|---|---|
-| 관리자 | admin@ari.ac.kr | admin1234 | — |
+| 관리자 | admin@ari.ac.kr | `.env`의 `ADMIN_PASSWORD` | — |
 | 학생 (인증 완료) | student@ari.ac.kr | student1234 | 예약 가능 |
 | 학생 (미인증) | student2@ari.ac.kr | student1234 | 예약 불가 |
 
@@ -106,7 +106,7 @@ npm run dev               # http://localhost:5173
 | `CORS_ORIGINS` | `http://localhost:5173` | CORS 허용 오리진 |
 | `RESERVATION_EXPIRY_SECONDS` | `600` | 예약 만료 시간 (개발용 단축 가능) |
 | `ADMIN_EMAIL` | `admin@ari.ac.kr` | 초기 관리자 이메일 |
-| `ADMIN_PASSWORD` | `admin1234` | 초기 관리자 비밀번호 |
+| `ADMIN_PASSWORD` | (없음) | 초기 관리자 비밀번호. 비워두면 관리자 계정을 만들지 않음 |
 
 ### frontend/.env
 
