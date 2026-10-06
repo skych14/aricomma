@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { reservationApi, verificationApi } from '../../api/index.js'
 import Logo from '../../components/Logo.jsx'
-import { Button, MenuItem, StatusBadge } from '../../components/ui/index.js'
+import { Button, ConfirmDialog, MenuItem, StatusBadge } from '../../components/ui/index.js'
 import {
   IconBack, IconLogout, IconMail, IconPassword, IconSeat, IconSeatMap,
   IconVerify, IconWithdraw,
@@ -24,6 +24,7 @@ export default function MorePage() {
   const navigate = useNavigate()
   const [reviewing, setReviewing] = useState(false)
   const [active, setActive] = useState(null)   // 진행 중인 예약(예약 중·이용 중)
+  const [confirmingLogout, setConfirmingLogout] = useState(false)
 
   useEffect(() => {
     verificationApi.myStatus()
@@ -88,12 +89,23 @@ export default function MorePage() {
           회원 탈퇴
         </MenuItem>
 
-        <MenuItem className="more-logout" icon={<IconLogout size={MENU_ICON} />} onClick={handleLogout}>
+        <MenuItem className="more-logout" icon={<IconLogout size={MENU_ICON} />}
+          onClick={() => setConfirmingLogout(true)}>
           로그아웃
         </MenuItem>
       </nav>
 
       <p className="home-footer">안양대학교 학우실 체크인 시스템</p>
+
+      {confirmingLogout && (
+        <ConfirmDialog
+          title="로그아웃할까요?"
+          description={active ? '로그아웃해도 예약은 그대로 유지돼요.' : undefined}
+          confirmLabel="로그아웃"
+          onConfirm={handleLogout}
+          onCancel={() => setConfirmingLogout(false)}
+        />
+      )}
     </div>
   )
 }

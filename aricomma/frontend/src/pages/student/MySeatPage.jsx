@@ -111,7 +111,7 @@ export default function MySeatPage() {
             {active.location || '—'}{floor ? ` · ${floor}층` : ''}
           </p>
 
-          <div className="flex gap-2 mt-4">
+          <div className="my-seat-actions mt-4">
             {/* 정지 중에는 체크인을 서버가 403으로 막으므로 버튼을 내린다.
                 자리를 비우는 예약 취소·퇴실은 정지 중에도 그대로 쓸 수 있다. */}
             {isPending && !user?.is_suspended && (

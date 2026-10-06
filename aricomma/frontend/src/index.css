@@ -584,7 +584,6 @@ tr:hover td { background: var(--surface-tint); }
 .user-search { flex: 1; min-width: 150px; }
 
 /* 관리자 표 안의 작은 조각 */
-.cell-code { font-size: var(--fs-seat-status); }
 .cell-id { font-size: var(--fs-seat-status); }
 
 /* ── 부품 전시 화면 (/ui) ─────────────────────────────── */
@@ -675,3 +674,29 @@ tr:hover td { background: var(--surface-tint); }
 .more-logout { margin-top: var(--space-5); }
 /* 되돌릴 수 없는 항목만 --danger 글자로 구분한다 (아이콘 색은 그대로) */
 .more-withdraw .ui-menu-item-label { color: var(--danger); }
+
+/* 내 자리: 버튼 3개가 좁은 화면에서 넘치지 않도록 줄바꿈하고 각 줄을 꽉 채운다.
+   기준 폭을 글자 폭(auto)으로 둬야 넓은 화면에서는 예전처럼 한 줄에 다 들어간다. */
+.my-seat-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.my-seat-actions > * { flex: 1 1 auto; }
+
+/* 감사 로그: 필터 줄 · 펼침 행 · 페이지 이동 */
+.audit-filters { align-items: center; }
+.audit-filters .ui-field { flex: 0 1 160px; min-width: 130px; }
+.audit-filters .audit-search { flex: 1 1 200px; }
+.audit-row { cursor: pointer; }
+.audit-row:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: -2px; }
+.audit-row.is-open > td { border-bottom-color: transparent; }
+.audit-detail > td { background: var(--surface-tint); white-space: normal; }
+/* 긴 상세가 표 폭(min-width: max-content)을 밀어내지 않게 — 표 폭에 맞춰 줄바꿈한다 */
+.audit-detail-body { width: 0; min-width: 100%; }
+.audit-detail dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); }
+.audit-detail dt { color: var(--ink-muted); font-size: var(--fs-label); }
+.audit-detail dd { font-size: var(--fs-body-sm); word-break: break-all; white-space: pre-wrap; }
+.audit-pager {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--space-2); margin-top: var(--space-3);
+}
+.audit-pager-summary { font-size: var(--fs-body-sm); color: var(--ink-muted); }
+.audit-pager-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.audit-pager-gap { color: var(--ink-muted); padding: 0 var(--space-1); }

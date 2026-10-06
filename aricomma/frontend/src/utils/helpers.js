@@ -107,6 +107,46 @@ export function actionLabel(a) {
   return ACTION_KO[a] || a
 }
 
+// 감사 로그(AuditLog)의 action_type. 드롭다운이 이 순서대로 보여준다.
+// SEAT_CREATE·SEAT_DELETE는 지금은 기록되지 않지만 예전 기록을 읽기 위해 남겨 둔다.
+export const AUDIT_ACTION_KO = {
+  USER_LOGIN: '로그인',
+  LOGIN_FAILED: '로그인 실패',
+  LOGIN_LOCKED: '로그인 잠금',
+  LOGIN_RATE_LIMITED: '요청 과다 차단',
+  LOGIN_SPRAY_BLOCKED: '로그인 일시 차단',
+  USER_REGISTER: '회원가입',
+  PASSWORD_CHANGE: '비밀번호 변경',
+  USER_TEMP_PASSWORD: '임시 비밀번호 발급',
+  USER_UPDATE: '사용자 상태 변경',
+  USER_DELETE: '계정 삭제',
+  USER_WITHDRAW: '회원 탈퇴',
+  VERIFICATION_SUBMIT: '인증 제출',
+  VERIFICATION_APPROVE: '인증 승인',
+  VERIFICATION_REJECT: '인증 거절',
+  RESERVATION_CREATE: '예약',
+  RESERVATION_CANCEL: '예약 취소',
+  RESERVATION_EXPIRED: '예약 만료',
+  CHECKIN: '체크인',
+  CHECKOUT: '퇴실',
+  RESERVATION_AUTO_CHECKOUT: '자동 퇴실',
+  REPORT_CREATE: '신고 접수',
+  REPORT_REVIEW: '신고 처리',
+  PENALTY_ISSUE: '패널티 부과',
+  PENALTY_REVOKE: '패널티 철회',
+  PENALTY_COUNTER_RESET: '누적 횟수 초기화',
+  SUSPENSION_LIFTED: '정지 자동 해제',
+  MODE_CHANGE: '운영 모드 변경',
+  SEAT_UPDATE: '자리 설정 변경',
+  QR_ROTATE: 'QR 재발급',
+  SEAT_CREATE: '자리 추가',
+  SEAT_DELETE: '자리 삭제',
+}
+
+export function auditActionLabel(code) {
+  return AUDIT_ACTION_KO[code] || code
+}
+
 export function errMsg(e) {
   return e?.response?.data?.detail || e?.message || '오류가 발생했습니다'
 }

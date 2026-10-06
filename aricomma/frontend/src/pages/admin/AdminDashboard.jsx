@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { Fragment, useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminUserApi, logApi, operationApi, reportApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
 import {
@@ -10,8 +10,8 @@ import {
   IconSearch,
 } from '../../components/ui/icons.jsx'
 import {
-  PENALTY_LEVELS, compareSeatsByRoom, errMsg, fmtDate, fmtDatetime, fmtTime, parseUTC,
-  actionLabel, penaltyLevelLabel, statusLabel,
+  AUDIT_ACTION_KO, PENALTY_LEVELS, compareSeatsByRoom, errMsg, fmtDate, fmtDatetime, fmtTime, parseUTC,
+  actionLabel, auditActionLabel, penaltyLevelLabel, statusLabel,
 } from '../../utils/helpers.js'
 
 const ICON = 16
@@ -397,44 +397,162 @@ function ReservationsTab() {
 }
 
 // ── 탭 4: 감사 로그 ──────────────────────────────────────────────────────
+const AUDIT_PAGE_SIZE = 50
+const AUDIT_COLUMNS = 6
+const AUDIT_NO_FILTERS = { date_from: '', date_to: '', action_type: '', q: '' }
+
+/** 현재 앞뒤 2개 + 처음·끝. 건너뛴 구간은 null로 표시한다. */
+function pageNumbers(page, pageCount) {
+  const nums = []
+  for (let n = 1; n <= pageCount; n++) {
+    if (n === 1 || n === pageCount || Math.abs(n - page) <= 2) nums.push(n)
+  }
+  return nums.flatMap((n, i) => (i > 0 && n - nums[i - 1] > 1 ? [null, n] : [n]))
+}
+
+/** detail(JSON 문자열)을 [키, 값] 줄로 푼다. JSON 객체가 아니면 null. */
+function auditDetailEntries(detail) {
+  try {
+    const parsed = JSON.parse(detail)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    return Object.entries(parsed).map(([k, v]) => [
+      k, v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v),
+    ])
+  } catch { return null }
+}
+
+function AuditDetail({ log }) {
+  const entries = log.detail ? auditDetailEntries(log.detail) : null
+  return (
+    <div className="audit-detail-body">
+      <dl>
+        <dt>대상 ID</dt>
+        <dd className="mono-id">{log.target_id || '—'}</dd>
+        {entries
+          ? entries.map(([k, v]) => (
+            <Fragment key={k}><dt>{k}</dt><dd>{v}</dd></Fragment>
+          ))
+          : <><dt>상세</dt><dd>{log.detail || '—'}</dd></>}
+      </dl>
+    </div>
+  )
+}
+
 function AuditTab() {
-  const [logs, setLogs] = useState([])
+  const [filters, setFilters] = useState(AUDIT_NO_FILTERS)   // 서버에 보낸(적용된) 조건
+  const [qDraft, setQDraft] = useState('')                    // 아직 검색하지 않은 입력
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState({ items: [], total: 0 })
+  const [openId, setOpenId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    logApi.adminAudit()
-      .then(r => setLogs(r.data))
-      .catch(e => setError(errMsg(e)))
-      .finally(() => setLoading(false))
-  }, [])
+    let stale = false
+    setLoading(true); setError('')
+    const params = { page, page_size: AUDIT_PAGE_SIZE }
+    Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v })
+    logApi.adminAudit(params)
+      .then(r => { if (!stale) { setData(r.data); setOpenId(null) } })
+      .catch(e => { if (!stale) setError(errMsg(e)) })
+      .finally(() => { if (!stale) setLoading(false) })
+    return () => { stale = true }
+  }, [filters, page])
+
+  // 조건이 바뀌면 항상 1페이지부터
+  const applyFilters = (next) => { setFilters(next); setPage(1) }
+  const setFilter = (key, value) => applyFilters({ ...filters, [key]: value, q: qDraft.trim() })
+  const reset = () => { setQDraft(''); applyFilters(AUDIT_NO_FILTERS) }
+
+  const { items, total } = data
+  const pageCount = Math.max(1, Math.ceil(total / AUDIT_PAGE_SIZE))
+  const toggle = (id) => setOpenId(openId === id ? null : id)
 
   return (
     <div>
+      <form className="filter-row audit-filters"
+        onSubmit={e => { e.preventDefault(); applyFilters({ ...filters, q: qDraft.trim() }) }}>
+        <TextField inline type="date" aria-label="시작일" value={filters.date_from}
+          max={filters.date_to || undefined}
+          onChange={e => setFilter('date_from', e.target.value)} />
+        <TextField inline type="date" aria-label="종료일" value={filters.date_to}
+          min={filters.date_from || undefined}
+          onChange={e => setFilter('date_to', e.target.value)} />
+        <TextField inline as="select" aria-label="종류" value={filters.action_type}
+          onChange={e => setFilter('action_type', e.target.value)}>
+          <option value="">전체</option>
+          {Object.entries(AUDIT_ACTION_KO).map(([code, label]) => (
+            <option key={code} value={code}>{label}</option>
+          ))}
+        </TextField>
+        <TextField inline className="audit-search" value={qDraft} aria-label="감사 로그 검색"
+          onChange={e => setQDraft(e.target.value)} placeholder="이름·학번·이메일·IP·내용 검색" />
+        <Button type="submit" size="sm">
+          <IconSearch size={ICON} aria-hidden="true" /> 검색
+        </Button>
+        <Button variant="secondary" size="sm" onClick={reset}>초기화</Button>
+      </form>
+
       {error && <Notice tone="danger">{error}</Notice>}
-      {loading ? <LoadingBox /> : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>시간</th><th>행위자</th><th>액션</th><th>대상 종류</th><th>대상 ID</th><th>IP</th></tr>
-            </thead>
-            <tbody>
-              {logs.map(l => (
-                <tr key={l.id}>
-                  <td>{fmtDatetime(l.created_at)}</td>
-                  <td>{l.actor_name || '시스템'}</td>
-                  <td><code className="cell-code">{l.action_type}</code></td>
-                  <td>{l.target_type || '—'}</td>
-                  <td className="mono-id cell-id">{l.target_id ? l.target_id.slice(0, 8) + '…' : '—'}</td>
-                  <td className="text-muted">{l.ip_address || '—'}</td>
-                </tr>
-              ))}
-              {logs.length === 0 && (
-                <tr><td colSpan={6}><EmptyState title="내역 없음" compact /></td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      {loading ? <LoadingBox /> : error ? null : (
+        <>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>시간</th><th>행위자</th><th>액션</th><th>대상 종류</th><th>대상 ID</th><th>IP</th></tr>
+              </thead>
+              <tbody>
+                {items.map(l => {
+                  const open = openId === l.id
+                  return (
+                    <Fragment key={l.id}>
+                      <tr className={`audit-row${open ? ' is-open' : ''}`} tabIndex={0}
+                        aria-expanded={open} data-audit-id={l.id}
+                        onClick={() => toggle(l.id)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(l.id) }
+                        }}>
+                        <td>{fmtDatetime(l.created_at)}</td>
+                        <td>{l.actor_name || '시스템'}</td>
+                        <td>{auditActionLabel(l.action_type)}</td>
+                        <td>{l.target_type || '—'}</td>
+                        <td className="mono-id cell-id">{l.target_id ? l.target_id.slice(0, 8) + '…' : '—'}</td>
+                        <td className="text-muted">{l.ip_address || '—'}</td>
+                      </tr>
+                      {open && (
+                        <tr className="audit-detail">
+                          <td colSpan={AUDIT_COLUMNS}><AuditDetail log={l} /></td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+                {items.length === 0 && (
+                  <tr><td colSpan={AUDIT_COLUMNS}><EmptyState title="조건에 맞는 기록이 없어요" compact /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="audit-pager">
+            <span className="audit-pager-summary">
+              총 {total.toLocaleString('ko-KR')}건 · {page} / {pageCount} 페이지
+            </span>
+            <nav className="audit-pager-buttons" aria-label="페이지 이동">
+              <Button variant="secondary" size="sm" disabled={page <= 1}
+                onClick={() => setPage(page - 1)}>이전</Button>
+              {pageNumbers(page, pageCount).map((n, i) => (n === null
+                ? <span key={`gap-${i}`} className="audit-pager-gap" aria-hidden="true">…</span>
+                : (
+                  <Button key={n} size="sm" variant={n === page ? 'primary' : 'secondary'}
+                    aria-current={n === page ? 'page' : undefined}
+                    onClick={() => setPage(n)}>{n}</Button>
+                )))}
+              <Button variant="secondary" size="sm" disabled={page >= pageCount}
+                onClick={() => setPage(page + 1)}>다음</Button>
+            </nav>
+          </div>
+        </>
       )}
     </div>
   )
@@ -853,6 +971,8 @@ function UsersTab() {
   const [tempBusy, setTempBusy] = useState(false)
   const [eventsUser, setEventsUser] = useState(null)
   const [resetting, setResetting] = useState(false)
+  const [asking, setAsking] = useState(null)           // { user, kind: 'suspend' | 'unverify' } 확인창 대상
+  const [askBusy, setAskBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
@@ -877,6 +997,15 @@ function UsersTab() {
       setMsg(`${user.name}: ${label}`)
       load()
     } catch (e) { setError(errMsg(e)) }
+  }
+
+  // 정지·인증 해제는 확인창에서 확인을 눌렀을 때만 실행한다
+  const confirmAsked = async () => {
+    const { user, kind } = asking
+    setAskBusy(true)
+    if (kind === 'suspend') await patch(user, { is_suspended: true }, '정지됨')
+    else await patch(user, { is_verified: false }, '인증 해제됨')
+    setAskBusy(false); setAsking(null)
   }
 
   const resetCounter = async () => {
@@ -959,11 +1088,11 @@ function UsersTab() {
                       onClick={() => patch(u, { is_suspended: false }, '정지 해제됨')}>정지 해제</Button>
                   ) : (
                     <Button size="sm" variant="secondary"
-                      onClick={() => patch(u, { is_suspended: true }, '정지됨')}>정지</Button>
+                      onClick={() => setAsking({ user: u, kind: 'suspend' })}>정지</Button>
                   )}
                   {u.is_verified && (
                     <Button size="sm" variant="secondary"
-                      onClick={() => patch(u, { is_verified: false }, '인증 해제됨')}>인증 해제</Button>
+                      onClick={() => setAsking({ user: u, kind: 'unverify' })}>인증 해제</Button>
                   )}
                   <Button size="sm" variant="secondary" onClick={() => setPenaltyUser(u)}>패널티</Button>
                   <Button size="sm" variant="secondary" onClick={() => setTempTarget(u)}>
@@ -989,6 +1118,30 @@ function UsersTab() {
           tone="danger"
           onConfirm={resetCounter}
           onCancel={() => setResetting(false)}
+        />
+      )}
+
+      {asking?.kind === 'suspend' && (
+        <ConfirmDialog
+          title="이 학생을 정지할까요?"
+          description={`${asking.user.name}(${asking.user.student_id}) 학생은 새 예약과 체크인을 할 수 없게 됩니다. 이미 이용 중이면 퇴실은 할 수 있어요.\n정지 해제 버튼으로 언제든 되돌릴 수 있습니다.`}
+          confirmLabel="정지"
+          tone="danger"
+          busy={askBusy}
+          onConfirm={confirmAsked}
+          onCancel={() => setAsking(null)}
+        />
+      )}
+
+      {asking?.kind === 'unverify' && (
+        <ConfirmDialog
+          title="인증을 해제할까요?"
+          description={`${asking.user.name}(${asking.user.student_id}) 학생은 학생증을 다시 제출해 승인받기 전까지 예약할 수 없게 됩니다.`}
+          confirmLabel="인증 해제"
+          tone="danger"
+          busy={askBusy}
+          onConfirm={confirmAsked}
+          onCancel={() => setAsking(null)}
         />
       )}
 

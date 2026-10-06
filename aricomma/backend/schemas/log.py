@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -30,3 +30,10 @@ class AuditLogResponse(BaseModel):
     actor_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class AuditLogPage(BaseModel):
+    items: List[AuditLogResponse]
+    total: int  # 필터가 적용된 전체 건수
+    page: int
+    page_size: int
