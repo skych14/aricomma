@@ -125,7 +125,7 @@ export default function MySeatPage() {
     },
     extend: {
       title: '이용 시간을 연장할까요?',
-      description: `종료 시각이 ${fmtTime(usageEndIso(active))} → ${fmtTime(active?.extend_to)}로 바뀝니다.`,
+      description: `새 종료 시각: ${fmtTime(active?.extend_to)}\n(지금 종료 예정 ${fmtTime(usageEndIso(active))})`,
       confirmLabel: '연장하기', tone: 'primary',
     },
   }
@@ -145,7 +145,7 @@ export default function MySeatPage() {
 
       {canExtend && (
         <Notice
-          tone="info"
+          tone="info" className="extend-banner"
           title={`지금 연장할 수 있어요 · ${fmtTime(active.usage_ends_at)} 종료 예정`}
           action={<Button size="sm" onClick={() => setConfirm('extend')}>연장하기</Button>}
         />

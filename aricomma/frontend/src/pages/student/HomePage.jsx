@@ -213,7 +213,7 @@ export default function HomePage() {
 
         {canExtend && (
           <Notice
-            tone="info"
+            tone="info" className="extend-banner"
             title={`지금 연장할 수 있어요 · ${fmtTime(active.usage_ends_at)} 종료 예정`}
             action={<Button size="sm" onClick={() => navigate('/my-seat')}>연장하러 가기</Button>}
           />

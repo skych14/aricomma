@@ -377,7 +377,6 @@ def extend(
         raise HTTPException(status_code=400, detail="이용 중일 때만 연장할 수 있어요")
 
     now = datetime.utcnow()
-    stored_end = r.usage_ends_at          # 조건부 갱신에서 대조할 "읽었던 값"
     old_end = _usage_end(r)
     old_count = r.extension_count or 0
 
@@ -400,14 +399,15 @@ def extend(
         )
     new_end = to_utc(new_end_kst)
 
-    # 두 번 눌러 두 번 연장되지 않도록, 읽었던 종료 시각 그대로일 때만 바꾼다
-    same_end = (
-        Reservation.usage_ends_at == stored_end
-        if stored_end is not None else Reservation.usage_ends_at.is_(None)
-    )
+    # 두 번 눌러 두 번 연장되지 않도록, 읽었던 연장 횟수 그대로일 때만 바꾼다.
+    # (종료 시각으로 대조하면 SQLite가 날짜를 글자로 비교해 형식이 다른 값에서 어긋난다)
     updated = (
         db.query(Reservation)
-        .filter(Reservation.id == rid, Reservation.status == "checked_in", same_end)
+        .filter(
+            Reservation.id == rid,
+            Reservation.status == "checked_in",
+            func.coalesce(Reservation.extension_count, 0) == old_count,
+        )
         .update(
             {
                 Reservation.usage_ends_at: new_end,

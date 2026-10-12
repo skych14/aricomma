@@ -317,7 +317,10 @@ a.ui-header-logo:hover { text-decoration: none; }
 .ui-modal {
   width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; margin-bottom: 0;
 }
-.ui-modal-desc { font-size: var(--fs-body); color: var(--ink); white-space: pre-line; line-height: 1.55; }
+.ui-modal-desc {
+  font-size: var(--fs-body); color: var(--ink); white-space: pre-line; line-height: 1.55;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
 .ui-modal-desc + .ui-field { margin-top: var(--space-4); }
 .ui-modal-actions {
   display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4);
