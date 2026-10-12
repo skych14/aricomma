@@ -6,17 +6,31 @@ import {
 } from '../../components/ui/index.js'
 import { IconBack } from '../../components/ui/icons.jsx'
 import {
-  REPORT_CATEGORIES, errMsg, fmtDatetime, fmtTime,
+  REPORT_CATEGORIES, errMsg, fmtDatetime, fmtMonthDay, fmtTime12,
 } from '../../utils/helpers.js'
 
 const MEMO_MAX = 300
 const LOOKBACK_HOURS = 24
 
-// 30분 단위 시각 목록 ("00:00" ~ "23:30")
+// "언제인가요?" 선택지. 숫자는 몇 분 전인지.
+const WHEN_NOW = 'now'
+const WHEN_CUSTOM = 'custom'
+const WHEN_OPTIONS = [
+  { key: WHEN_NOW, label: '지금 일어나고 있어요' },
+  { key: 30, label: '약 30분 전' },
+  { key: 60, label: '약 1시간 전' },
+  { key: 120, label: '약 2시간 전' },
+  { key: WHEN_CUSTOM, label: '직접 고르기' },
+]
+
+// 30분 단위 시각 목록. 값은 24시간("14:00"), 표시는 오전/오후("오후 2:00").
 const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
-  const h = String(Math.floor(i / 2)).padStart(2, '0')
+  const hour = Math.floor(i / 2)
   const m = i % 2 ? '30' : '00'
-  return `${h}:${m}`
+  return {
+    value: `${String(hour).padStart(2, '0')}:${m}`,
+    label: `${hour < 12 ? '오전' : '오후'} ${hour % 12 || 12}:${m}`,
+  }
 })
 
 /** 한국시간 기준 오늘/어제 날짜 키 (YYYY-MM-DD) */
@@ -42,9 +56,15 @@ export default function ReportPage() {
   const [location, setLocation] = useState('')
   const [seatId, setSeatId] = useState('')
   const [category, setCategory] = useState('')
-  const [dayOffset, setDayOffset] = useState(0)   // 0 = 오늘, -1 = 어제
-  const [fromTime, setFromTime] = useState('')
-  const [toTime, setToTime] = useState('')
+  const [when, setWhen] = useState(WHEN_NOW)      // WHEN_OPTIONS의 key
+  const [dayOffset, setDayOffset] = useState(0)   // 직접 고르기: 0 = 오늘, -1 = 어제
+  const [time, setTime] = useState('')            // 직접 고르기: "HH:MM"
+  // 요약 줄의 "지금"이 화면을 열어둔 동안 멈춰 있지 않게 주기적으로 다시 그린다
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 30 * 1000)
+    return () => clearInterval(iv)
+  }, [])
   const [memo, setMemo] = useState('')
 
   const load = async () => {
@@ -66,28 +86,39 @@ export default function ReportPage() {
   // 최근 24시간 밖이거나 미래인 시각은 고를 수 없게 막는다
   const slotDisabled = (hhmm) => {
     const t = new Date(kstToIso(kstDateKey(dayOffset), hhmm)).getTime()
-    const now = Date.now()
     return t > now || t < now - LOOKBACK_HOURS * 3600 * 1000
   }
 
-  const valid = seatId && category && fromTime && toTime && fromTime < toTime
+  // 신고 기준 시각 (ISO). 지금 신고는 서버가 서버 시각으로 정하므로 화면 표시용일 뿐이다.
+  const occurredAt = when === WHEN_NOW ? new Date(now).toISOString()
+    : when === WHEN_CUSTOM ? (time ? kstToIso(kstDateKey(dayOffset), time) : '')
+      : new Date(now - when * 60 * 1000).toISOString()
+
+  const dayWord = (iso) => {
+    const key = new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })
+    return key === kstDateKey(0) ? '오늘' : key === kstDateKey(-1) ? '어제' : fmtMonthDay(iso)
+  }
+  const summary = !occurredAt ? ''
+    : when === WHEN_NOW ? `${dayWord(occurredAt)} ${fmtTime12(occurredAt)} 기준으로 신고해요`
+      : `${dayWord(occurredAt)} ${fmtTime12(occurredAt)} 무렵`
+
+  const valid = seatId && category && !!occurredAt
 
   const submit = async (e) => {
     e.preventDefault()
     setError(''); setMsg('')
-    if (!valid) { setError('자리, 유형, 시간대를 모두 선택해주세요'); return }
+    if (!valid) { setError('자리, 유형, 시각을 모두 선택해주세요'); return }
     setSubmitting(true)
     try {
-      const dateKey = kstDateKey(dayOffset)
       await reportApi.create({
         seat_id: seatId,
         category,
-        occurred_from: kstToIso(dateKey, fromTime),
-        occurred_to: kstToIso(dateKey, toTime),
         memo: memo.trim() || undefined,
+        // 지금 신고의 시각은 서버가 정한다 (휴대폰 시계를 믿지 않게)
+        ...(when === WHEN_NOW ? { when: 'now' } : { when: 'past', occurred_at: occurredAt }),
       })
       setMsg('접수되었습니다. 관리자 확인 후 처리됩니다')
-      setSeatId(''); setCategory(''); setFromTime(''); setToTime(''); setMemo('')
+      setSeatId(''); setCategory(''); setWhen(WHEN_NOW); setTime(''); setMemo('')
       load()
     } catch (err) { setError(errMsg(err)) }
     finally { setSubmitting(false) }
@@ -132,35 +163,36 @@ export default function ReportPage() {
         </div>
 
         <div className="ui-field">
-          <span className="ui-field-label">
-            언제였나요? <span className="ui-field-optional">(최근 24시간)</span>
-          </span>
-          <div className="flex gap-2 mb-2">
-            {[[0, '오늘'], [-1, '어제']].map(([off, label]) => (
-              <Button key={off} size="sm"
-                variant={dayOffset === off ? 'primary' : 'secondary'}
-                onClick={() => { setDayOffset(off); setFromTime(''); setToTime('') }}>
-                {label}
+          <span className="ui-field-label">언제인가요?</span>
+          <div className="report-when">
+            {WHEN_OPTIONS.map(o => (
+              <Button key={o.key} size="sm" aria-pressed={when === o.key}
+                variant={when === o.key ? 'primary' : 'secondary'}
+                onClick={() => setWhen(o.key)}>
+                {o.label}
               </Button>
             ))}
           </div>
-          <div className="time-range">
-            <TextField as="select" inline value={fromTime} aria-label="시작 시각"
-              onChange={e => setFromTime(e.target.value)}>
-              <option value="">시작</option>
-              {TIME_SLOTS.map(t => (
-                <option key={t} value={t} disabled={slotDisabled(t)}>{t}</option>
-              ))}
-            </TextField>
-            <span aria-hidden="true">~</span>
-            <TextField as="select" inline value={toTime} aria-label="종료 시각"
-              onChange={e => setToTime(e.target.value)}>
-              <option value="">종료</option>
-              {TIME_SLOTS.map(t => (
-                <option key={t} value={t} disabled={slotDisabled(t) || (fromTime && t <= fromTime)}>{t}</option>
-              ))}
-            </TextField>
-          </div>
+          {when === WHEN_CUSTOM && (
+            <div className="report-when-custom">
+              <div className="flex gap-2">
+                {[[0, '오늘'], [-1, '어제']].map(([off, label]) => (
+                  <Button key={off} size="sm" aria-pressed={dayOffset === off}
+                    variant={dayOffset === off ? 'primary' : 'secondary'}
+                    onClick={() => { setDayOffset(off); setTime('') }}>
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <TextField as="select" inline value={time} aria-label="시각"
+                onChange={e => setTime(e.target.value)}>
+                <option value="">시각 선택 (최근 24시간)</option>
+                {TIME_SLOTS.map(t => (
+                  <option key={t.value} value={t.value} disabled={slotDisabled(t.value)}>{t.label}</option>
+                ))}
+              </TextField>
+            </div>
+          )}
         </div>
 
         <TextField as="textarea" label="메모" labelNote="(선택)" rows={3} maxLength={MEMO_MAX}
@@ -172,6 +204,8 @@ export default function ReportPage() {
           신고 내용은 관리자만 확인합니다. 신고자 정보는 상대방에게 공개되지 않아요.
           사실과 다른 신고가 반복되면 이용이 제한될 수 있습니다.
         </div>
+
+        {summary && <p className="report-summary">{summary}</p>}
 
         <Button type="submit" block loading={submitting} disabled={!valid}>
           {submitting ? '접수 중...' : '신고하기'}
@@ -195,7 +229,11 @@ export default function ReportPage() {
                   <StatusBadge status={r.status} label={r.status_label} />
                 </div>
                 <div className="record-card-meta">
-                  {fmtTime(r.occurred_from)}~{fmtTime(r.occurred_to)} · 접수 {fmtDatetime(r.created_at)}
+                  {fmtMonthDay(r.occurred_to)}{' '}
+                  {r.is_live
+                    ? fmtTime12(r.occurred_to)
+                    : `${fmtTime12(r.occurred_from)}~${fmtTime12(r.occurred_to)}`}
+                  {' · '}접수 {fmtDatetime(r.created_at)}
                 </div>
                 {r.memo && <div className="record-card-note">{r.memo}</div>}
               </li>

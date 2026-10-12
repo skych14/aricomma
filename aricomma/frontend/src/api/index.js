@@ -77,6 +77,8 @@ export const reservationApi = {
   myList: () => client.get('/api/reservations/me'),
   cancel: (id) => client.delete(`/api/reservations/${id}`),
   extend: (id) => client.post(`/api/reservations/${id}/extend`),
+  // 예약한 자리에 다른 사람이 있을 때: 미퇴실 신고 + 내 예약 취소
+  reportOccupied: (id) => client.post(`/api/reservations/${id}/occupied-report`),
   checkin: (id, qr_token) =>
     client.post(`/api/reservations/${id}/checkin`, { qr_token }),
   checkout: (id) => client.post(`/api/reservations/${id}/checkout`),

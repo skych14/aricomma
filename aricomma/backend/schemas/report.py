@@ -14,14 +14,20 @@ def _to_utc_naive(v: datetime) -> datetime:
 class ReportCreate(BaseModel):
     seat_id: str
     category: str                # no_checkout | eating | noise
-    occurred_from: datetime
-    occurred_to: datetime
     memo: Optional[str] = None
+    # 발생 구간은 서버가 정한다: now = 지금까지 15분, past = occurred_at 앞뒤 15분
+    when: str = "now"            # now | past
+    occurred_at: Optional[datetime] = None   # past일 때만 필수
 
-    @field_validator("occurred_from", "occurred_to")
+    @field_validator("occurred_at")
     @classmethod
-    def normalize_tz(cls, v: datetime) -> datetime:
-        return _to_utc_naive(v)
+    def normalize_tz(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _to_utc_naive(v) if v else v
+
+
+class OccupiedReportResponse(BaseModel):
+    report_id: str
+    cancelled: bool = True
 
 
 class ReportMine(BaseModel):
@@ -39,6 +45,8 @@ class ReportMine(BaseModel):
     status: str
     status_label: str            # 접수됨 / 처리 완료 / 대상 확인 불가 / 반려
     created_at: datetime
+    is_live: bool = False        # "지금" 신고
+    source: Optional[str] = None  # report_page | checkin
 
 
 class ReportAdmin(BaseModel):
@@ -54,6 +62,8 @@ class ReportAdmin(BaseModel):
     status: str
     status_label: str
     created_at: datetime
+    is_live: bool = False
+    source: Optional[str] = None
     reporter_id: str
     reporter_name: Optional[str] = None
     reporter_student_id: Optional[str] = None
@@ -75,6 +85,10 @@ class CandidateResponse(BaseModel):
     checked_out_at: Optional[datetime] = None
     checkout_kind: str           # self | auto | none
     overlapped: bool             # True = 신고 시간대와 겹침, False = 직전 이용자
+    relation: str                # in_use | overlapped | recent
+    ended_minutes_before: Optional[int] = None   # recent일 때만
+    is_likely: bool = False      # 기록상 가장 유력한 후보 (하나만)
+    is_reporter: bool = False    # 신고자 본인
     penalty_count: int
     recommended_level: str
     is_admin: bool = False

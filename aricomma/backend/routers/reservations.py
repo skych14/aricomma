@@ -12,6 +12,7 @@ from models.reservation import Reservation
 from models.seat import Seat
 from models.usage_log import UsageLog
 from models.user import User
+from schemas.report import OccupiedReportResponse
 from schemas.reservation import (
     CheckinRequest,
     ReservationCreate,
@@ -39,6 +40,7 @@ from utils.operation import (
     to_utc,
 )
 from utils.rate_limit import client_ip
+from utils.report_intake import SOURCE_CHECKIN, live_window, prepare_report
 from utils.settings_store import get_operation_mode
 
 router = APIRouter(tags=["reservations"])
@@ -223,6 +225,77 @@ def cancel_reservation(
         ip_address=request.client.host if request.client else None,
     )
     db.commit()
+
+
+@router.post("/api/reservations/{rid}/occupied-report", response_model=OccupiedReportResponse)
+def report_occupied(
+    rid: str,
+    request: Request,
+    current_user: User = Depends(get_verified_student),
+    db: Session = Depends(get_db),
+):
+    """
+    예약한 자리에 가보니 다른 사람이 있을 때: 미퇴실로 신고하고 내 예약을 취소한다.
+
+    신고와 취소는 한 트랜잭션이다. 신고가 거절되면(하루 3건 제한 등) 예약도 그대로 둔다.
+    """
+    expire_pending_reservations(db)
+
+    r = db.query(Reservation).filter(Reservation.id == rid).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다")
+    if r.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="본인의 예약이 아닙니다")
+    if r.status != "pending":
+        raise HTTPException(status_code=400, detail="체크인 전인 예약에서만 신고할 수 있어요")
+
+    seat = db.query(Seat).filter(Seat.id == r.seat_id).first()
+    if not seat:
+        raise HTTPException(status_code=404, detail="자리를 찾을 수 없습니다")
+
+    now = datetime.utcnow()
+    occurred_from, occurred_to = live_window(now)
+    # 걸리면 여기서 예외가 나가고 아무것도 바뀌지 않는다
+    report = prepare_report(
+        db, current_user, seat, "no_checkout", occurred_from, occurred_to,
+        "예약 후 자리에 가보니 다른 사람이 사용 중",
+        is_live=True, source=SOURCE_CHECKIN, now=now,
+    )
+
+    r.status = "cancelled"
+    db.add(UsageLog(
+        id=str(uuid.uuid4()),
+        reservation_id=r.id,
+        user_id=r.user_id,
+        seat_id=r.seat_id,
+        action="cancelled",
+        performed_at=now,
+        note="자리에 다른 사람이 있어 신고 후 취소",
+    ))
+    ip = client_ip(request)
+    write_audit(
+        db,
+        action_type="REPORT_CREATE",
+        actor_id=current_user.id,
+        target_type="report",
+        target_id=report.id,
+        detail={
+            "seat_id": r.seat_id, "category": "no_checkout", "when": "now",
+            "source": SOURCE_CHECKIN, "reservation_id": r.id,
+        },
+        ip_address=ip,
+    )
+    write_audit(
+        db,
+        action_type="RESERVATION_CANCEL",
+        actor_id=current_user.id,
+        target_type="reservation",
+        target_id=r.id,
+        detail={"reason": "occupied_report", "report_id": report.id},
+        ip_address=ip,
+    )
+    db.commit()
+    return OccupiedReportResponse(report_id=report.id, cancelled=True)
 
 
 @router.post("/api/reservations/{rid}/checkin", response_model=ReservationDetail)

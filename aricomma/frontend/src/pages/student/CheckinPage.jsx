@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
 import { operationApi, reservationApi } from '../../api/index.js'
 import {
-  Button, Card, LoadingBox, Notice, PageTitle, Spinner,
+  Button, Card, ConfirmDialog, LoadingBox, Notice, PageTitle, Spinner,
 } from '../../components/ui/index.js'
 import {
   IconBack, IconCameraOff, IconCelebrate, IconCheck, IconDone, IconExpired,
@@ -69,6 +69,8 @@ export default function CheckinPage() {
   const [cameraError, setCameraError] = useState('')
   const [op, setOp] = useState(null)          // 체크인 전 예상 종료 시각 안내용
   const [usageEnd, setUsageEnd] = useState('') // 체크인 후 확정된 종료 시각
+  const [occupiedAsk, setOccupiedAsk] = useState(false)   // "자리에 다른 사람이 있어요" 확인창
+  const [occupiedBusy, setOccupiedBusy] = useState(false)
 
   // 스캐너 인스턴스와 "처리 중" 플래그는 ref로 — 콜백이 최신 state를 못 보므로
   const scannerRef = useRef(null)      // 지금 화면이 쓰고 있는 스캐너
@@ -253,6 +255,24 @@ export default function CheckinPage() {
     startScanner()
   }, [loading, reservation, success, startScanner])
 
+  // 예약한 자리에 다른 사람이 있을 때: 미퇴실 신고 + 내 예약 취소 (서버가 한 번에 처리)
+  const reportOccupied = async () => {
+    if (occupiedBusy) return
+    setOccupiedBusy(true); setError('')
+    try {
+      await reservationApi.reportOccupied(rid)
+      navigate('/seats', {
+        state: { notice: '신고가 접수되고 예약이 취소됐어요. 다른 자리를 골라주세요.' },
+      })
+    } catch (err) {
+      if (unmountedRef.current) return
+      // 하루 3건 제한(429) 등 — 서버 문구를 그대로 보여주고 화면은 유지한다
+      setError(err.response?.data?.detail || '신고에 실패했습니다')
+      setOccupiedAsk(false)
+      setOccupiedBusy(false)
+    }
+  }
+
   if (loading) return <LoadingBox />
 
   if (!reservation) return (
@@ -358,7 +378,23 @@ export default function CheckinPage() {
         {submitting && (
           <p className="checkin-submitting"><Spinner size="sm" /> 체크인 중...</p>
         )}
+
+        <Button variant="secondary" block className="checkin-occupied-btn"
+          disabled={submitting || scanHit} onClick={() => setOccupiedAsk(true)}>
+          자리에 다른 사람이 있어요
+        </Button>
       </Card>
+
+      {occupiedAsk && (
+        <ConfirmDialog
+          title="자리에 다른 사람이 있나요?"
+          description={'미퇴실로 신고하고 이 예약은 취소할게요.\n취소 후 다른 자리를 바로 예약할 수 있어요.'}
+          confirmLabel="신고하고 예약 취소"
+          busy={occupiedBusy}
+          onConfirm={reportOccupied}
+          onCancel={() => setOccupiedAsk(false)}
+        />
+      )}
     </div>
   )
 }

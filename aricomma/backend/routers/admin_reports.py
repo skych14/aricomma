@@ -25,7 +25,7 @@ from schemas.report import (
 )
 from utils.audit import write_audit
 from utils.auth import get_current_admin
-from utils.occupancy import previous_occupants, seat_occupants
+from utils.occupancy import RELATION_RECENT, report_candidates as find_candidates
 from utils.penalty import (
     CATEGORY_LABELS,
     COUNTER_RESET_KEY,
@@ -69,6 +69,8 @@ def _to_admin(r: Report, db: Session) -> ReportAdmin:
         status=r.status,
         status_label=REPORT_STATUS_LABELS.get(r.status, r.status),
         created_at=r.created_at,
+        is_live=bool(r.is_live),
+        source=r.source,
         reporter_id=r.reporter_id,
         reporter_name=reporter.name if reporter else None,
         reporter_student_id=reporter.student_id if reporter else None,
@@ -128,28 +130,25 @@ def report_candidates(
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """그 시간대에 그 좌석을 쓴 사람 + 직전 이용자를 합쳐서 보여준다.
+    """신고 시각에 이용 중이던 사람 + 시간대가 겹친 사람 + 직전(최근 6시간) 이용자.
 
-    누구도 지목하지 않는다. 관리자가 고를 수 있도록 기록을 정리해 보여줄 뿐이다.
+    '유력' 표시는 기록상 가장 그럴듯한 한 명을 알려줄 뿐이다. 대상자는 관리자가 고른다.
     """
     r = db.query(Report).filter(Report.id == rid).first()
     if not r:
         raise HTTPException(status_code=404, detail="신고를 찾을 수 없습니다")
 
-    now = datetime.utcnow()
-    occupants = seat_occupants(db, r.seat_id, r.occurred_from, r.occurred_to, now)
-    seen = {o.reservation.id for o in occupants}
-    # 미퇴실 신고 대응: 신고 구간 직전에 그 좌석을 쓰고 나간 사람들
-    for prev in previous_occupants(db, r.seat_id, r.occurred_from):
-        if prev.reservation.id not in seen:
-            occupants.append(prev)
-            seen.add(prev.reservation.id)
+    candidates = find_candidates(
+        db, r.seat_id, r.occurred_from, r.occurred_to, r.category, r.reporter_id,
+        is_live=bool(r.is_live), now=datetime.utcnow(),
+    )
 
     reset_at = counter_reset_at(db)
-    counts = penalty_counts(db, {o.user.id for o in occupants}, reset_at)
+    counts = penalty_counts(db, {c.occupant.user.id for c in candidates}, reset_at)
 
     result = []
-    for o in occupants:
+    for c in candidates:
+        o = c.occupant
         count = counts.get(o.user.id, 0)
         result.append(
             CandidateResponse(
@@ -160,7 +159,11 @@ def report_candidates(
                 checked_in_at=o.reservation.checked_in_at,
                 checked_out_at=o.reservation.checked_out_at,
                 checkout_kind=o.checkout_kind,
-                overlapped=o.overlapped,
+                overlapped=c.relation != RELATION_RECENT,
+                relation=c.relation,
+                ended_minutes_before=c.ended_minutes_before,
+                is_likely=c.is_likely,
+                is_reporter=c.is_reporter,
                 penalty_count=count,
                 recommended_level=recommended_level(count),
                 is_admin=o.user.role == "admin",

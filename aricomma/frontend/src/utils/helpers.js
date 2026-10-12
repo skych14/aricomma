@@ -28,6 +28,23 @@ export function fmtTime(iso) {
   })
 }
 
+/** 한국시간 "오전 2:00" / "오후 2:17" — 24시간 표기가 헷갈리는 학생 화면용. */
+export function fmtTime12(iso) {
+  if (!iso) return '—'
+  return parseUTC(iso).toLocaleTimeString('ko-KR', {
+    hour: 'numeric', minute: '2-digit', hour12: true,
+    timeZone: 'Asia/Seoul',
+  })
+}
+
+/** 한국시간 "10. 12." — 시각 앞에 붙여 며칠 일인지 알 수 있게 한다. */
+export function fmtMonthDay(iso) {
+  if (!iso) return '—'
+  return parseUTC(iso).toLocaleDateString('ko-KR', {
+    month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+  })
+}
+
 /**
  * 지금이 연장 가능 시간대(종료 30분 전 ~ 종료 전)인지.
  * 시각 계산은 서버가 내려준 extendable_from·usage_ends_at만 쓴다.
@@ -57,7 +74,7 @@ export function fmtDuration(minutes) {
 }
 
 export const REPORT_CATEGORIES = [
-  { key: 'no_checkout', label: '미퇴실', desc: '이용 시간이 끝났는데 자리를 비우지 않았어요' },
+  { key: 'no_checkout', label: '미퇴실', desc: '이용 시간이 끝났는데 안 나가거나, 예약 없이 쓰고 있어요' },
   { key: 'eating', label: '취식', desc: '학우실 안에서 음식을 먹었어요' },
   { key: 'noise', label: '심한 소음', desc: '통화·대화·알람 등으로 쉬기 어려웠어요' },
 ]

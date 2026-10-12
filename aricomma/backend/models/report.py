@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
 
 from database import Base
 
@@ -22,6 +22,10 @@ class Report(Base):
     occurred_from = Column(DateTime, nullable=False)  # UTC
     occurred_to = Column(DateTime, nullable=False)    # UTC
     memo = Column(String)
+    # "지금 일어나고 있어요"로 들어온 신고. 컬럼 도입 전 신고는 NULL이며 false로 읽는다.
+    is_live = Column(Boolean, default=False)
+    # report_page | checkin — 어디서 신고했는지. 컬럼 도입 전 신고는 NULL.
+    source = Column(String)
     # pending | penalized | no_target | rejected
     status = Column(String, nullable=False, default="pending", index=True)
     accused_user_id = Column(String, ForeignKey("users.id"))

@@ -240,7 +240,7 @@ function ChoiceTile({ icon, label, count, onClick }) {
 export default function SeatsPage() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
-  const { pathname, key: historyKey } = useLocation()
+  const { pathname, key: historyKey, state: navState } = useLocation()
   const { gender, room: roomKey } = useParams()
 
   const [seats, setSeats] = useState([])
@@ -248,6 +248,11 @@ export default function SeatsPage() {
   const [error, setError] = useState('')
   const [reserving, setReserving] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  // 체크인 화면에서 넘겨준 완료 안내는 한 번만 보여주고 기록에서 지운다
+  const [flash] = useState(navState?.notice || '')
+  useEffect(() => {
+    if (navState?.notice) navigate(pathname, { replace: true, state: null })
+  }, [])
   // 확인 버튼을 연달아 눌러도 예약 요청은 한 번만 — state는 다음 렌더에야 바뀐다
   const reservingRef = useRef(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -323,6 +328,7 @@ export default function SeatsPage() {
       <div>
         <BackLink to="/home" label="홈" onGo={go} />
         <PageTitle>어느 학우실을 이용할까요?</PageTitle>
+        {flash && <Notice tone="success">{flash}</Notice>}
         {notices}
         {error && <Notice tone="danger">{error}</Notice>}
 

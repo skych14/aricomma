@@ -10,7 +10,7 @@ import {
   IconSearch,
 } from '../../components/ui/icons.jsx'
 import {
-  AUDIT_ACTION_KO, PENALTY_LEVELS, compareSeatsByRoom, errMsg, fmtDate, fmtDatetime, fmtTime, parseUTC,
+  AUDIT_ACTION_KO, PENALTY_LEVELS, compareSeatsByRoom, errMsg, fmtDate, fmtDatetime, fmtMonthDay, fmtTime, parseUTC,
   actionLabel, auditActionLabel, penaltyLevelLabel, statusLabel,
 } from '../../utils/helpers.js'
 
@@ -576,6 +576,21 @@ function dateInputValue(days) {
     .toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })
 }
 
+/** 신고 시간대 — 날짜 포함. 지금 신고는 한 시각, 지난 일은 구간. */
+function reportWhen(r) {
+  return r.is_live
+    ? `${fmtMonthDay(r.occurred_to)} ${fmtTime(r.occurred_to)} (지금 신고)`
+    : `${fmtMonthDay(r.occurred_from)} ${fmtTime(r.occurred_from)}~${fmtTime(r.occurred_to)}`
+}
+
+/** "17분 전 종료" / "4시간 17분 전 종료" */
+function endedAgo(minutes) {
+  if (minutes == null) return ''
+  if (minutes <= 60) return `${minutes}분 전 종료`
+  const m = minutes % 60
+  return `${Math.floor(minutes / 60)}시간${m ? ` ${m}분` : ''} 전 종료`
+}
+
 function ReportDetailModal({ report, onClose, onReviewed }) {
   const [candidates, setCandidates] = useState(null)
   const [selected, setSelected] = useState(null)   // 후보 user_id
@@ -618,6 +633,9 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
     finally { setBusy(false) }
   }
 
+  // 미퇴실인데 끝난 이용 기록이 없고 지금 이용 중인 사람만 있으면: 예약된 정상 이용일 가능성
+  const normalUseHint = report.category === 'no_checkout' && !candidates?.some(c => c.is_likely)
+
   const canPenalize = selected && level && (!isTerm || endsAt) && !target?.is_admin
   const canReject = note.trim().length > 0
 
@@ -631,7 +649,11 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
           <span>자리</span><strong>{report.location} {report.seat_number}</strong>
         </div>
         <div className="report-detail-row">
-          <span>시간대</span><strong>{fmtTime(report.occurred_from)}~{fmtTime(report.occurred_to)}</strong>
+          <span>시간대</span>
+          <strong>
+            {reportWhen(report)}
+            {report.source === 'checkin' && <> <StatusBadge tone="wait" label="체크인 화면에서 신고" /></>}
+          </strong>
         </div>
         <div className="report-detail-row">
           <span>신고자</span>
@@ -645,7 +667,8 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
         <LoadingBox />
       ) : candidates.length === 0 ? (
         <Notice tone="warning">
-          그 시간대에 이 자리를 이용한 기록이 없습니다. 대상 확인 불가로 종결할 수 있어요.
+          최근 6시간 안에 이 자리를 쓴 기록이 없어요. 예약 없이 쓰고 있었을 수 있으니 현장 확인이 필요합니다.
+          대상을 특정할 수 없으면 '대상 확인 불가'로 종결하세요.
         </Notice>
       ) : (
         <ul className="candidate-list">
@@ -658,15 +681,26 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
                 onClick={() => pick(c)}>
                 <div className="candidate-head">
                   <strong>{c.name} <span className="mono-id">{c.student_id}</span></strong>
-                  <StatusBadge tone={c.overlapped ? 'wait' : 'neutral'}
-                    label={c.overlapped ? '시간대 겹침' : '직전 이용'} />
+                  <span className="candidate-badges">
+                    {c.is_likely && <StatusBadge tone="bad" label="유력" />}
+                    {c.relation === 'in_use' && <StatusBadge tone="ok" label="지금 이용 중" />}
+                    {c.relation === 'overlapped' && <StatusBadge tone="wait" label="시간대 겹침" />}
+                    {c.relation === 'recent' && (
+                      <StatusBadge tone="neutral" label={`직전 이용 · ${endedAgo(c.ended_minutes_before)}`} />
+                    )}
+                    {c.checkout_kind === 'auto' && <StatusBadge tone="neutral" label="자동 퇴실" />}
+                    {c.is_reporter && <StatusBadge tone="neutral" label="신고자 본인" />}
+                  </span>
                 </div>
                 <div className="candidate-meta">
-                  {fmtTime(c.checked_in_at)}~{c.checked_out_at ? fmtTime(c.checked_out_at) : '이용 중'}
-                  {' · '}
-                  {c.checkout_kind === 'auto' ? '자동 퇴실'
-                    : c.checkout_kind === 'self' ? '본인 퇴실' : '퇴실 기록 없음'}
+                  {fmtMonthDay(c.checked_in_at)} {fmtTime(c.checked_in_at)}~{c.checked_out_at ? fmtTime(c.checked_out_at) : '이용 중'}
+                  {c.checkout_kind === 'self' && ' · 본인 퇴실'}
                 </div>
+                {normalUseHint && c.relation === 'in_use' && (
+                  <div className="candidate-meta candidate-hint">
+                    예약된 정상 이용입니다. 다른 자리와 헷갈렸을 수 있어요
+                  </div>
+                )}
                 <div className="candidate-meta">
                   누적 {c.penalty_count}회 · 권장 {penaltyLevelLabel(c.recommended_level)}
                 </div>
@@ -766,7 +800,8 @@ function ReportsTab({ onPendingCount }) {
                 <StatusBadge status={r.status} label={r.status_label} />
               </div>
               <div className="record-card-meta">
-                {fmtTime(r.occurred_from)}~{fmtTime(r.occurred_to)} · 접수 {fmtDatetime(r.created_at)}
+                {reportWhen(r)} · 접수 {fmtDatetime(r.created_at)}
+                {r.source === 'checkin' && <> <StatusBadge tone="wait" label="체크인 화면에서 신고" /></>}
               </div>
               <div className="record-card-meta">
                 신고자 {r.reporter_name} <span className="mono-id">{r.reporter_student_id}</span>
