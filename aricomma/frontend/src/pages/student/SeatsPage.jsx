@@ -429,10 +429,13 @@ export default function SeatsPage() {
   }
 
   // 평상시 마감(17시)으로 짧아지거나 시험기간 밤 규칙으로 길어질 때만 실제 종료 시각을 덧붙인다
-  const reserveDesc = '기본 이용 시간은 2시간이며 퇴실 30분 전부터 이용 시간을 연장할 수 있습니다.'
-    + (op && op.usage_minutes_if_checkin_now !== 120 && op.usage_ends_at_if_checkin_now
-      ? `\n지금 체크인하면 ${fmtTime(op.usage_ends_at_if_checkin_now)}까지 이용할 수 있어요.`
-      : '')
+  const reserveDesc = (
+    <>
+      기본 이용 시간은 <span className="text-emph">2시간</span>이며 퇴실 30분 전부터 이용 시간을 연장할 수 있습니다.
+      {op && op.usage_minutes_if_checkin_now !== 120 && op.usage_ends_at_if_checkin_now
+        && `\n지금 체크인하면 ${fmtTime(op.usage_ends_at_if_checkin_now)}까지 이용할 수 있어요.`}
+    </>
+  )
 
   return (
     <div>
@@ -488,7 +491,8 @@ export default function SeatsPage() {
         <ConfirmDialog
           title="예약하시겠습니까?"
           description={reserveDesc}
-          confirmLabel="확인하였습니다."
+          acknowledgeLabel="확인하였습니다."
+          confirmLabel="다음"
           cancelLabel="취소"
           busy={reserving}
           onConfirm={confirmReserve}

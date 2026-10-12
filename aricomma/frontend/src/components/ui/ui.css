@@ -322,6 +322,20 @@ a.ui-header-logo:hover { text-decoration: none; }
   word-break: keep-all; overflow-wrap: anywhere;
 }
 .ui-modal-desc + .ui-field { margin-top: var(--space-4); }
+/* 확인창의 "확인하였습니다" 체크 — 줄 전체가 44px 이상 터치 영역 */
+.ui-modal-ack { align-items: center; min-height: 44px; margin-top: var(--space-3); }
+.ui-modal-ack + .ui-modal-actions { margin-top: var(--space-2); }
+
+/* ── 체크박스 한 줄 (라벨 전체를 눌러 체크) ───────────────── */
+.ui-check-line {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  font-size: var(--fs-body); color: var(--ink); line-height: 1.4;
+  word-break: keep-all; cursor: pointer;
+}
+/* 터치 영역을 키우면서 글자와 첫 줄을 맞춘다 */
+.ui-check-line input {
+  flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: var(--brand-strong);
+}
 .ui-modal-actions {
   display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4);
 }

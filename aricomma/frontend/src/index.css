@@ -169,6 +169,8 @@ tr:hover td { background: var(--surface-tint); }
 .section-title { font-size: var(--fs-title); font-weight: 700; color: var(--ink); margin-bottom: 10px; }
 /* 안내 문장 */
 .text-muted { color: var(--ink-muted); font-size: var(--fs-body-sm); }
+/* 안내 문구에서 꼭 읽어야 하는 단어 */
+.text-emph { color: var(--danger); font-weight: 800; font-size: 1.25em; }
 .text-center { text-align: center; }
 /* 화면 읽기에만 들리는 글자 — 눈으로는 안 보이지만 읽기 순서에는 남는다 */
 .sr-only {
@@ -199,15 +201,6 @@ tr:hover td { background: var(--surface-tint); }
 
 /* 개인정보 동의 — 체크박스 한 줄 + 접히는 상세 */
 .privacy-agree { margin-bottom: var(--space-4); }
-.privacy-agree-line {
-  display: flex; align-items: flex-start; gap: var(--space-2);
-  font-size: var(--fs-body); color: var(--ink); line-height: 1.4;
-  word-break: keep-all; cursor: pointer;
-}
-/* 터치 영역을 키우면서 글자와 첫 줄을 맞춘다 */
-.privacy-agree-line input {
-  flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: var(--brand-strong);
-}
 .privacy-agree .ui-btn { margin-top: var(--space-1); padding-left: 0; }
 .privacy-detail {
   margin-top: var(--space-2); padding: var(--space-3);
@@ -568,7 +561,7 @@ tr:hover td { background: var(--surface-tint); }
 .checkin-result-title { font-size: var(--fs-title); font-weight: 700; color: var(--ink); }
 .checkin-result-desc {
   color: var(--ink-muted, inherit); font-size: var(--fs-body-sm); line-height: 1.6;
-  white-space: pre-line; word-break: keep-all; overflow-wrap: anywhere;
+  word-break: keep-all; overflow-wrap: anywhere;
 }
 
 /* 관리자: 임시 비밀번호 — 읽어서 불러줄 수 있게 크고 띄엄띄엄 */

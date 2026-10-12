@@ -18,15 +18,17 @@ import TextField from './TextField.jsx'
  * @param {string} confirmLabel  확인 버튼 글자
  * @param {'primary'|'danger'} tone  되돌릴 수 없으면 danger
  * @param {string} confirmWord   입력 확인이 필요할 때 대조할 값
+ * @param {string} acknowledgeLabel  주면 버튼 위에 체크박스를 두고, 체크해야 확인 버튼이 열린다
  * @param {string} error         서버 오류 문구
  * @param {boolean} busy         처리 중 (버튼 스피너 + 닫기 잠금)
  */
 export default function ConfirmDialog({
   title, description, confirmLabel = '확인', cancelLabel = '취소',
   tone = 'primary', confirmWord, confirmWordLabel = '확인을 위해 다시 입력하세요',
-  error, busy = false, onConfirm, onCancel,
+  acknowledgeLabel, error, busy = false, onConfirm, onCancel,
 }) {
   const [typed, setTyped] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
   // 학번처럼 영문이 섞인 값을 받으므로 대소문자는 구분하지 않는다
   const matched =
     !confirmWord || typed.trim().toUpperCase() === String(confirmWord).toUpperCase()
@@ -50,8 +52,17 @@ export default function ConfirmDialog({
         />
       )}
 
+      {acknowledgeLabel && (
+        <label className="ui-check-line ui-modal-ack">
+          <input type="checkbox" checked={acknowledged} disabled={busy}
+            onChange={e => setAcknowledged(e.target.checked)} />
+          {acknowledgeLabel}
+        </label>
+      )}
+
       <div className="ui-modal-actions">
-        <Button variant={tone} loading={busy} disabled={!matched} onClick={onConfirm}>
+        <Button variant={tone} loading={busy}
+          disabled={!matched || (!!acknowledgeLabel && !acknowledged)} onClick={onConfirm}>
           {confirmLabel}
         </Button>
         <Button variant="secondary" disabled={busy} onClick={onCancel} data-confirm-cancel="">

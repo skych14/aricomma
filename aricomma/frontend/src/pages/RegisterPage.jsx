@@ -117,7 +117,7 @@ export default function RegisterPage() {
             error={mismatch ? '비밀번호가 서로 달라요' : undefined} />
 
           <div className="privacy-agree">
-            <label className="privacy-agree-line">
+            <label className="ui-check-line">
               <input type="checkbox" checked={agreed}
                 onChange={e => setAgreed(e.target.checked)} />
               개인정보 수집·이용에 동의합니다 (필수)
