@@ -144,13 +144,17 @@ export default function RegisterPage() {
 
       {done && (
         // 바깥을 누르거나 Esc로 닫아도 할 일은 같다 — 로그인 화면으로 보낸다
-        <Modal title="가입이 완료되었어요" onClose={toLogin}>
+        <Modal
+          title="가입이 완료되었어요" onClose={toLogin}
+          actions={
+            <div className="ui-modal-actions">
+              <Button block onClick={toLogin}>로그인하러 가기</Button>
+            </div>
+          }
+        >
           <p className="ui-modal-desc">
             로그인한 뒤 학생 인증을 하면 자리를 예약할 수 있어요.
           </p>
-          <div className="ui-modal-actions">
-            <Button block onClick={toLogin}>로그인하러 가기</Button>
-          </div>
         </Modal>
       )}
     </div>

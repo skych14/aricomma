@@ -41,4 +41,5 @@ export {
   UserX as IconWithdraw,             // 👤 회원 탈퇴 (글자는 --danger)
   Users as IconUsers,
   Venus as IconFemale,               // 🚺 여학우실
+  X as IconClose,                    // ✕ 창 닫기
 } from 'lucide-react'

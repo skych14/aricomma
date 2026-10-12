@@ -38,6 +38,17 @@ export default function ConfirmDialog({
       title={title}
       onClose={busy ? undefined : onCancel}
       initialFocus={tone === 'danger' && !confirmWord ? '[data-confirm-cancel]' : undefined}
+      actions={
+        <div className={`ui-modal-actions${acknowledgeLabel ? ' ui-modal-actions--tight' : ''}`}>
+          <Button variant={tone} loading={busy}
+            disabled={!matched || (!!acknowledgeLabel && !acknowledged)} onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={onCancel} data-confirm-cancel="">
+            {cancelLabel}
+          </Button>
+        </div>
+      }
     >
       {error && <Notice tone="danger">{error}</Notice>}
       {description && <p className="ui-modal-desc">{description}</p>}
@@ -59,16 +70,6 @@ export default function ConfirmDialog({
           {acknowledgeLabel}
         </label>
       )}
-
-      <div className="ui-modal-actions">
-        <Button variant={tone} loading={busy}
-          disabled={!matched || (!!acknowledgeLabel && !acknowledged)} onClick={onConfirm}>
-          {confirmLabel}
-        </Button>
-        <Button variant="secondary" disabled={busy} onClick={onCancel} data-confirm-cancel="">
-          {cancelLabel}
-        </Button>
-      </div>
     </Modal>
   )
 }

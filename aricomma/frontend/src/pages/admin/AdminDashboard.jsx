@@ -146,7 +146,16 @@ function ReviewModal({ record, onClose, onReviewed }) {
   }
 
   return (
-    <Modal title="인증 검토" onClose={busy ? undefined : onClose}>
+    <Modal
+      title="인증 검토" onClose={busy ? undefined : onClose}
+      actions={
+        <div className="ui-modal-actions">
+          <Button loading={busy} onClick={() => review('approve')}>승인</Button>
+          <Button variant="danger" disabled={busy || !canReject} onClick={() => review('reject')}>거절</Button>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>취소</Button>
+        </div>
+      }
+    >
       {error && <Notice tone="danger">{error}</Notice>}
 
       <div className="review-file">
@@ -183,12 +192,6 @@ function ReviewModal({ record, onClose, onReviewed }) {
       </div>
       <TextField value={note} onChange={e => setNote(e.target.value)}
         aria-label="거절 사유" placeholder="거절 사유를 입력하세요" />
-
-      <div className="ui-modal-actions">
-        <Button loading={busy} onClick={() => review('approve')}>승인</Button>
-        <Button variant="danger" disabled={busy || !canReject} onClick={() => review('reject')}>거절</Button>
-        <Button variant="secondary" disabled={busy} onClick={onClose}>취소</Button>
-      </div>
     </Modal>
   )
 }
@@ -630,7 +633,20 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
   const canReject = note.trim().length > 0
 
   return (
-    <Modal title="신고 상세" onClose={busy ? undefined : onClose}>
+    <Modal
+      title="신고 상세" onClose={busy ? undefined : onClose}
+      actions={
+        <div className="ui-modal-actions ui-modal-actions--grid">
+          <Button variant="danger" size="sm" disabled={!canPenalize || busy}
+            onClick={() => setConfirming(true)}>패널티 부과</Button>
+          <Button variant="secondary" size="sm" disabled={busy}
+            onClick={() => submit('no_target')}>대상 확인 불가로 종결</Button>
+          <Button variant="secondary" size="sm" disabled={!canReject || busy}
+            onClick={() => submit('reject')}>반려</Button>
+          <Button variant="ghost" size="sm" disabled={busy} onClick={onClose}>닫기</Button>
+        </div>
+      }
+    >
       {error && <Notice tone="danger">{error}</Notice>}
 
       <div className="report-detail">
@@ -733,16 +749,6 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
 
       <TextField label="관리자 메모" labelNote="(반려 시 필수)" value={note}
         onChange={e => setNote(e.target.value)} placeholder="처리 사유" />
-
-      <div className="ui-modal-actions">
-        <Button variant="danger" size="sm" disabled={!canPenalize || busy}
-          onClick={() => setConfirming(true)}>패널티 부과</Button>
-        <Button variant="secondary" size="sm" disabled={busy}
-          onClick={() => submit('no_target')}>대상 확인 불가로 종결</Button>
-        <Button variant="secondary" size="sm" disabled={!canReject || busy}
-          onClick={() => submit('reject')}>반려</Button>
-        <Button variant="ghost" size="sm" disabled={busy} onClick={onClose}>닫기</Button>
-      </div>
 
       {confirming && (
         <ConfirmDialog
@@ -871,6 +877,11 @@ function PenaltyListModal({ user, onClose, onChanged }) {
       onClose={busy ? undefined : onClose}
       label="패널티 내역"
       title={<>패널티 내역 — {user.name} <span className="mono-id">{user.student_id}</span></>}
+      actions={
+        <div className="ui-modal-actions">
+          <Button variant="ghost" size="sm" onClick={onClose}>닫기</Button>
+        </div>
+      }
     >
       {error && <Notice tone="danger">{error}</Notice>}
       {rows === null ? <LoadingBox />
@@ -901,9 +912,6 @@ function PenaltyListModal({ user, onClose, onChanged }) {
           ))}
         </ul>
       )}
-      <div className="ui-modal-actions">
-        <Button variant="ghost" size="sm" onClick={onClose}>닫기</Button>
-      </div>
     </Modal>
   )
 }
@@ -933,7 +941,14 @@ function TempPasswordModal({ user, password, onClose }) {
   }
 
   return (
-    <Modal title="임시 비밀번호를 발급했어요" onClose={onClose}>
+    <Modal
+      title="임시 비밀번호를 발급했어요" onClose={onClose}
+      actions={
+        <div className="ui-modal-actions">
+          <Button onClick={onClose}>닫기</Button>
+        </div>
+      }
+    >
       <p className="ui-modal-desc">
         {user.name}({user.student_id}) 학생의 임시 비밀번호입니다.
       </p>
@@ -948,9 +963,6 @@ function TempPasswordModal({ user, password, onClose }) {
       <Notice tone="warning">
         이 창을 닫으면 다시 볼 수 없어요. 학생에게 직접 전달하세요.
       </Notice>
-      <div className="ui-modal-actions">
-        <Button onClick={onClose}>닫기</Button>
-      </div>
     </Modal>
   )
 }
@@ -973,7 +985,14 @@ function LoginEventsModal({ user, onClose }) {
   }, [user.id])
 
   return (
-    <Modal title={`${user.name} 로그인 기록`} onClose={onClose}>
+    <Modal
+      title={`${user.name} 로그인 기록`} onClose={onClose}
+      actions={
+        <div className="ui-modal-actions">
+          <Button variant="secondary" onClick={onClose}>닫기</Button>
+        </div>
+      }
+    >
       {error && <Notice tone="danger">{error}</Notice>}
       {rows === null ? <LoadingBox /> : rows.length === 0 ? (
         <EmptyState title="기록이 없습니다." compact />
@@ -998,9 +1017,6 @@ function LoginEventsModal({ user, onClose }) {
           </table>
         </div>
       )}
-      <div className="ui-modal-actions">
-        <Button variant="secondary" onClick={onClose}>닫기</Button>
-      </div>
     </Modal>
   )
 }

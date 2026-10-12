@@ -213,13 +213,17 @@ export default function UiKitPage() {
         />
       )}
       {modal && (
-        <Modal title="Modal" onClose={() => setModal(false)}>
+        <Modal
+          title="Modal" onClose={() => setModal(false)}
+          actions={
+            <div className="ui-modal-actions">
+              <Button variant="secondary" onClick={() => setModal(false)}>닫기</Button>
+            </div>
+          }
+        >
           <p className="ui-modal-desc">
             ConfirmDialog와 관리자 검토창이 함께 쓰는 바탕입니다. Esc나 바깥을 눌러 닫을 수 있어요.
           </p>
-          <div className="ui-modal-actions">
-            <Button variant="secondary" onClick={() => setModal(false)}>닫기</Button>
-          </div>
         </Modal>
       )}
     </div>
