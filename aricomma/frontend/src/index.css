@@ -683,6 +683,7 @@ tr:hover td { background: var(--surface-tint); }
    기준 폭을 글자 폭(auto)으로 둬야 넓은 화면에서는 예전처럼 한 줄에 다 들어간다. */
 .my-seat-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .my-seat-actions > * { flex: 1 1 auto; }
+.my-seat-extend-hint { margin-top: var(--space-1); }
 
 /* 감사 로그: 필터 줄 · 펼침 행 · 페이지 이동 */
 .audit-filters { align-items: center; }

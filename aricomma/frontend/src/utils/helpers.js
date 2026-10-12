@@ -28,6 +28,16 @@ export function fmtTime(iso) {
   })
 }
 
+/**
+ * 지금이 연장 가능 시간대(종료 30분 전 ~ 종료 전)인지.
+ * 시각 계산은 서버가 내려준 extendable_from·usage_ends_at만 쓴다.
+ */
+export function inExtendWindow(r, nowMs = Date.now()) {
+  if (r?.status !== 'checked_in' || !r.extendable_from || !r.usage_ends_at) return false
+  return nowMs >= parseUTC(r.extendable_from).getTime()
+    && nowMs < parseUTC(r.usage_ends_at).getTime()
+}
+
 /** UTC naive ISO 문자열이 가리키는 한국시간의 "시"(0~23). */
 export function kstHour(iso) {
   if (!iso) return null
@@ -98,6 +108,7 @@ export function statusLabel(s) {
 const ACTION_KO = {
   reserved: '예약',
   checked_in: '체크인',
+  extended: '연장',
   checked_out: '퇴실',
   cancelled: '예약 취소',
   expired: '만료',
@@ -128,6 +139,7 @@ export const AUDIT_ACTION_KO = {
   RESERVATION_CANCEL: '예약 취소',
   RESERVATION_EXPIRED: '예약 만료',
   CHECKIN: '체크인',
+  RESERVATION_EXTEND: '이용 연장',
   CHECKOUT: '퇴실',
   RESERVATION_AUTO_CHECKOUT: '자동 퇴실',
   REPORT_CREATE: '신고 접수',

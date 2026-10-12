@@ -9,7 +9,7 @@ import {
   IconExit, IconMail, IconQr, IconSeat, IconUser,
 } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
-import { fmtDate, fmtTime, parseUTC } from '../../utils/helpers.js'
+import { fmtDate, fmtTime, inExtendWindow, parseUTC } from '../../utils/helpers.js'
 
 // 경고 누적 한도 — 관리자 화면과 같은 기준(3회)
 const WARNING_LIMIT = 3
@@ -84,9 +84,15 @@ export default function HomePage() {
     ]).finally(() => setLoading(false))
   }, [])
 
+  // 화면을 열어둔 채 종료 30분 전이 되면 연장 안내가 저절로 뜨도록 주기적으로 다시 그린다
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 30 * 1000)
+    return () => clearInterval(iv)
+  }, [])
+
   if (loading) return <LoadingBox />
 
-  const now = Date.now()
   const active = reservations.find(r => ['pending', 'checked_in'].includes(r.status))
   const isPending = active?.status === 'pending'
   const isUsing = active?.status === 'checked_in'
@@ -101,6 +107,9 @@ export default function HomePage() {
   const warnings = penalties.filter(p => p.counts_toward_total !== false).length
 
   const closed = !!op && !op.is_open_now
+
+  // 연장은 내 자리 화면에서 한다 — 홈은 알려주기만 (정지 중·상한 도달이면 서버가 거절하므로 숨김)
+  const canExtend = !suspended && !!active?.extend_to && inExtendWindow(active, now)
 
   // ── 미인증 학생: 홈 자리에 인증 안내 ──────────────────────────────────
   const verified = !!user?.is_verified
@@ -200,6 +209,14 @@ export default function HomePage() {
               ? `${fmtDate(suspendedUntil)}까지 이용이 정지되었어요`
               : '이용이 정지되었어요'
           } />
+        )}
+
+        {canExtend && (
+          <Notice
+            tone="info"
+            title={`지금 연장할 수 있어요 · ${fmtTime(active.usage_ends_at)} 종료 예정`}
+            action={<Button size="sm" onClick={() => navigate('/my-seat')}>연장하러 가기</Button>}
+          />
         )}
 
         <PenaltyNotice hideSuspension={suspended} />

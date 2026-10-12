@@ -76,6 +76,7 @@ export const reservationApi = {
   create: (seat_id) => client.post('/api/reservations', { seat_id }),
   myList: () => client.get('/api/reservations/me'),
   cancel: (id) => client.delete(`/api/reservations/${id}`),
+  extend: (id) => client.post(`/api/reservations/${id}/extend`),
   checkin: (id, qr_token) =>
     client.post(`/api/reservations/${id}/checkin`, { qr_token }),
   checkout: (id) => client.post(`/api/reservations/${id}/checkout`),

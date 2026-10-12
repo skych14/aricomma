@@ -13,7 +13,7 @@ class UsageLog(Base):
     reservation_id = Column(String, ForeignKey("reservations.id"), nullable=False, index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     seat_id = Column(String, ForeignKey("seats.id"), nullable=False, index=True)
-    # reserved | checked_in | checked_out | expired | cancelled
+    # reserved | checked_in | extended | checked_out | expired | cancelled
     action = Column(String, nullable=False)
     performed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     note = Column(String)

@@ -30,6 +30,8 @@ DEFAULT_USAGE_HOURS = 2      # 기본 이용 시간
 NIGHT_START_HOUR = 22        # 22:00부터 밤 규칙 (22:00 포함)
 NIGHT_END_HOUR = 9           # 09:00부터 낮 규칙 (09:00 포함)
 NIGHT_MAX_HOURS = 7          # 밤 규칙 최대 이용 시간
+EXTENSION_HOURS = 2          # 연장 한 번에 늘어나는 시간
+EXTENSION_WINDOW_MINUTES = 30  # 종료 예정 몇 분 전부터 연장할 수 있는지
 
 CLOSED_MESSAGE = "지금은 이용 시간이 아니에요. 10:00~17:00에 이용할 수 있어요"
 
@@ -148,3 +150,26 @@ def usage_minutes(checkin_kst: datetime, mode: str) -> int:
     """체크인 시각 기준으로 이용 가능한 분 수."""
     end = compute_usage_end(checkin_kst, mode)
     return int((end - checkin_kst).total_seconds() // 60)
+
+
+# ── 이용 연장 ────────────────────────────────────────────────────────────
+
+def extension_end(current_end_kst: datetime, mode: str) -> Optional[datetime]:
+    """현재 종료 예정 시각(KST)에서 한 번 연장했을 때의 새 종료 시각(KST).
+
+    새 종료 = min(현재 종료 + 2시간, 상한). 늘어나지 않으면 None.
+
+    [7시간 모드] 상한 = 종료 예정일의 17:00
+      예) 14:00 → 16:00 / 16:00 → 17:00(1시간) / 17:00 → 연장 불가
+    [24시간 모드] 상한 = 현재 종료 예정 시각 이후(같거나 늦은) 첫 09:00
+      예) 15:00 → 17:00 / 23:00 → 01:00 / 08:00 → 09:00 / 09:00 → 연장 불가
+    """
+    if normalize_mode(mode) == MODE_STANDARD:
+        cap = _at(current_end_kst, STANDARD_CLOSE_HOUR)
+    else:
+        cap = _at(current_end_kst, NIGHT_END_HOUR)
+        if cap < current_end_kst:
+            cap = _at(current_end_kst, NIGHT_END_HOUR, day_offset=1)
+
+    new_end = min(current_end_kst + timedelta(hours=EXTENSION_HOURS), cap)
+    return new_end if new_end > current_end_kst else None

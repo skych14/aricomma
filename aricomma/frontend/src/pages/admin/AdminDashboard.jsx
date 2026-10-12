@@ -348,7 +348,7 @@ function ReservationsTab() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>학생</th><th>학번</th><th>자리</th><th>예약 시간</th><th>상태</th><th>체크인</th><th>종료 예정</th><th>퇴실</th></tr>
+              <tr><th>학생</th><th>학번</th><th>자리</th><th>예약 시간</th><th>상태</th><th>체크인</th><th>종료 예정</th><th>연장</th><th>퇴실</th></tr>
             </thead>
             <tbody>
               {reservations.map(r => (
@@ -360,11 +360,12 @@ function ReservationsTab() {
                   <td><StatusBadge status={r.status} /></td>
                   <td>{fmtDatetime(r.checked_in_at)}</td>
                   <td>{r.usage_ends_at ? fmtTime(r.usage_ends_at) : '—'}</td>
+                  <td>{r.extension_count ? `${r.extension_count}회` : '—'}</td>
                   <td>{fmtDatetime(r.checked_out_at)}</td>
                 </tr>
               ))}
               {reservations.length === 0 && (
-                <tr><td colSpan={8}><EmptyState title="내역 없음" compact /></td></tr>
+                <tr><td colSpan={9}><EmptyState title="내역 없음" compact /></td></tr>
               )}
             </tbody>
           </table>

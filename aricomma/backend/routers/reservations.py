@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -23,22 +24,48 @@ from utils.auth import (
     get_checkin_student,
     get_current_admin,
     get_current_user,
+    get_verified_student,
 )
 from utils.expiry import expire_pending_reservations
 from utils.operation import (
     CLOSED_MESSAGE,
+    EXTENSION_WINDOW_MINUTES,
+    MODE_STANDARD,
     compute_usage_end,
+    extension_end,
     is_reservation_open,
     to_kst,
+    normalize_mode,
     to_utc,
 )
+from utils.rate_limit import client_ip
 from utils.settings_store import get_operation_mode
 
 router = APIRouter(tags=["reservations"])
 
 
-def _build_detail(r: Reservation, db: Session) -> ReservationDetail:
+def _usage_end(r: Reservation) -> Optional[datetime]:
+    """이용 종료 예정 시각(UTC). usage_ends_at 도입 전 예약은 예전 규칙으로 계산한다."""
+    if r.usage_ends_at:
+        return r.usage_ends_at
+    if r.checked_in_at:
+        return r.checked_in_at + timedelta(seconds=settings.max_usage_seconds)
+    return None
+
+
+def _hhmm(utc_naive: datetime) -> str:
+    return to_kst(utc_naive).strftime("%H:%M")
+
+
+def _build_detail(r: Reservation, db: Session, mode: Optional[str] = None) -> ReservationDetail:
     seat = db.query(Seat).filter(Seat.id == r.seat_id).first()
+
+    extendable_from = extend_to = None
+    end = _usage_end(r) if r.status == "checked_in" else None
+    if end:
+        extendable_from = end - timedelta(minutes=EXTENSION_WINDOW_MINUTES)
+        new_end = extension_end(to_kst(end), mode or get_operation_mode(db))
+        extend_to = to_utc(new_end) if new_end else None
     return ReservationDetail(
         id=r.id,
         user_id=r.user_id,
@@ -52,6 +79,9 @@ def _build_detail(r: Reservation, db: Session) -> ReservationDetail:
         seat_number=seat.seat_number if seat else None,
         seat_type=seat.seat_type if seat else None,
         location=seat.location if seat else None,
+        extension_count=r.extension_count or 0,
+        extendable_from=extendable_from,
+        extend_to=extend_to,
     )
 
 
@@ -151,7 +181,8 @@ def my_reservations(
         .limit(50)
         .all()
     )
-    return [_build_detail(r, db) for r in rows]
+    mode = get_operation_mode(db)
+    return [_build_detail(r, db, mode) for r in rows]
 
 
 @router.delete("/api/reservations/{rid}", status_code=204)
@@ -321,6 +352,105 @@ def checkout(
     return _build_detail(r, db)
 
 
+@router.post("/api/reservations/{rid}/extend", response_model=ReservationDetail)
+def extend(
+    rid: str,
+    request: Request,
+    current_user: User = Depends(get_verified_student),
+    db: Session = Depends(get_db),
+):
+    """
+    이용 시간을 한 번(+2시간) 늘린다. 기준은 "지금"이 아니라 현재 종료 예정 시각이다.
+
+    종료 30분 전부터 종료 전까지만 가능하고, 횟수 제한은 없지만
+    연장하는 순간의 운영 모드 상한(평상시 17:00 / 시험기간 다음 09:00)을 넘지 못한다.
+    """
+    if current_user.is_suspended:
+        raise HTTPException(status_code=403, detail="정지 중에는 연장할 수 없어요")
+
+    r = db.query(Reservation).filter(Reservation.id == rid).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다")
+    if r.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="본인의 예약이 아닙니다")
+    if r.status != "checked_in":
+        raise HTTPException(status_code=400, detail="이용 중일 때만 연장할 수 있어요")
+
+    now = datetime.utcnow()
+    stored_end = r.usage_ends_at          # 조건부 갱신에서 대조할 "읽었던 값"
+    old_end = _usage_end(r)
+    old_count = r.extension_count or 0
+
+    window_start = old_end - timedelta(minutes=EXTENSION_WINDOW_MINUTES)
+    if now < window_start:
+        raise HTTPException(
+            status_code=400, detail=f"{_hhmm(window_start)}부터 연장할 수 있어요"
+        )
+    # 자동 퇴실은 1분 간격이라, 종료 시각이 지났는데 아직 checked_in일 수 있다
+    if now >= old_end:
+        raise HTTPException(status_code=400, detail="이용 시간이 끝나 연장할 수 없어요")
+
+    mode = normalize_mode(get_operation_mode(db))
+    new_end_kst = extension_end(to_kst(old_end), mode)
+    if new_end_kst is None:
+        raise HTTPException(
+            status_code=400,
+            detail="운영 마감(17:00)이라 더 연장할 수 없어요"
+            if mode == MODE_STANDARD else "밤 이용은 09:00까지예요",
+        )
+    new_end = to_utc(new_end_kst)
+
+    # 두 번 눌러 두 번 연장되지 않도록, 읽었던 종료 시각 그대로일 때만 바꾼다
+    same_end = (
+        Reservation.usage_ends_at == stored_end
+        if stored_end is not None else Reservation.usage_ends_at.is_(None)
+    )
+    updated = (
+        db.query(Reservation)
+        .filter(Reservation.id == rid, Reservation.status == "checked_in", same_end)
+        .update(
+            {
+                Reservation.usage_ends_at: new_end,
+                Reservation.extension_count: func.coalesce(Reservation.extension_count, 0) + 1,
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated == 0:
+        db.rollback()
+        raise HTTPException(
+            status_code=409, detail="이미 연장되었어요. 화면을 새로고침해 주세요"
+        )
+
+    db.add(UsageLog(
+        id=str(uuid.uuid4()),
+        reservation_id=r.id,
+        user_id=r.user_id,
+        seat_id=r.seat_id,
+        action="extended",
+        performed_at=now,
+        note=f"{_hhmm(old_end)} → {_hhmm(new_end)}",
+    ))
+    write_audit(
+        db,
+        action_type="RESERVATION_EXTEND",
+        actor_id=current_user.id,
+        target_type="reservation",
+        target_id=r.id,
+        detail={
+            "seat_id": r.seat_id,
+            "mode": mode,
+            "previous_usage_ends_at": str(old_end),
+            "usage_ends_at": str(new_end),
+            "extension_count": old_count + 1,
+        },
+        ip_address=client_ip(request),
+    )
+    db.commit()
+    db.refresh(r)
+    return _build_detail(r, db, mode)
+
+
 # ─── 관리자 전용 ─────────────────────────────────────────────────────────────
 
 @router.get("/api/admin/reservations", response_model=List[ReservationDetail])
@@ -335,9 +465,10 @@ def admin_list_reservations(
         query = query.filter(Reservation.status == status)
     rows = query.order_by(Reservation.reserved_at.desc()).limit(200).all()
 
+    mode = get_operation_mode(db)
     result = []
     for r in rows:
-        d = _build_detail(r, db)
+        d = _build_detail(r, db, mode)
         user = db.query(User).filter(User.id == r.user_id).first()
         if user:
             d.user_name = user.name

@@ -33,3 +33,7 @@ class ReservationDetail(ReservationResponse):
     location: Optional[str] = None
     user_name: Optional[str] = None
     user_student_id: Optional[str] = None
+    # 이용 연장 — 화면이 시간 계산을 직접 하지 않도록 서버가 알려준다 (모두 UTC)
+    extension_count: int = 0
+    extendable_from: Optional[datetime] = None  # 이용 중이면 종료 예정 30분 전
+    extend_to: Optional[datetime] = None        # 지금 모드로 연장하면 바뀔 종료 시각. 못 늘리면 None

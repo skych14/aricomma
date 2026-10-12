@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { reservationApi } from '../../api/index.js'
+import { operationApi, reservationApi } from '../../api/index.js'
 import {
   Button, Card, ConfirmDialog, EmptyState, LoadingBox,
   Notice, PageTitle, StatusBadge,
 } from '../../components/ui/index.js'
 import { IconBack, IconQr, IconSeatMap } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
-import { errMsg, fmtDatetime, fmtTime, parseUTC } from '../../utils/helpers.js'
+import { errMsg, fmtDatetime, fmtTime, inExtendWindow, parseUTC } from '../../utils/helpers.js'
 import { seatMapPath } from '../../utils/rooms.js'
 
 // usage_ends_at 도입 전에 체크인된 예약을 위한 예전 계산 (백엔드 max_usage_seconds)
@@ -42,8 +42,13 @@ export default function MySeatPage() {
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [confirm, setConfirm] = useState('')      // '' | 'cancel' | 'checkout'
+  const [success, setSuccess] = useState('')
+  const [confirm, setConfirm] = useState('')      // '' | 'cancel' | 'checkout' | 'extend'
   const [busy, setBusy] = useState(false)
+  // 확인 버튼을 연달아 눌러도 요청은 한 번만 — state는 다음 렌더에야 바뀐다
+  const busyRef = useRef(false)
+  const [mode, setMode] = useState('')            // 연장 상한 안내 문구용 운영 모드
+  const [now, setNow] = useState(() => Date.now())
 
   const load = async () => {
     try {
@@ -52,7 +57,16 @@ export default function MySeatPage() {
     } catch (e) { setError(errMsg(e)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    operationApi.get().then(r => setMode(r.data.mode)).catch(() => { /* 안내 문구만 기본값 */ })
+  }, [])
+
+  // 화면을 열어둔 채 종료 30분 전이 되면 [연장하기]가 저절로 나타나도록 주기적으로 다시 그린다
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 30 * 1000)
+    return () => clearInterval(iv)
+  }, [])
 
   const active = reservations.find(r => ['pending', 'checked_in'].includes(r.status))
   const isPending = active?.status === 'pending'
@@ -60,11 +74,31 @@ export default function MySeatPage() {
   // 끝나면 홈으로 돌아가며 완료 안내를 함께 넘긴다
   const finish = (notice) => navigate('/home', { state: { notice } })
 
+  // ── 연장 안내: 시각 계산은 서버가 내려준 extendable_from·extend_to만 쓴다 ──
+  // 정지 중에는 서버가 403으로 막으므로 안내도 버튼도 내린다
+  const isUsing = active?.status === 'checked_in' && !user?.is_suspended
+  const canExtend = isUsing && !!active.extend_to && inExtendWindow(active, now)
+  let extendHint = ''
+  if (isUsing && !active.extend_to) {
+    extendHint = mode === 'extended'
+      ? '밤 이용은 09:00까지예요'
+      : '운영 마감 시간이라 더 연장할 수 없어요'
+  } else if (isUsing && active.extendable_from && now < parseUTC(active.extendable_from).getTime()) {
+    extendHint = `${fmtTime(active.extendable_from)}부터 연장할 수 있어요`
+  }
+
   const run = async () => {
-    if (!active) return
-    setBusy(true); setError('')
+    if (!active || busyRef.current) return
+    busyRef.current = true
+    setBusy(true); setError(''); setSuccess('')
     try {
-      if (confirm === 'cancel') {
+      if (confirm === 'extend') {
+        const r = await reservationApi.extend(active.id)
+        setSuccess(`${fmtTime(r.data.usage_ends_at)}까지 연장되었어요`)
+        setConfirm('')
+        setNow(Date.now())
+        await load()
+      } else if (confirm === 'cancel') {
         await reservationApi.cancel(active.id)
         finish('예약이 취소되었습니다.')
       } else {
@@ -75,8 +109,27 @@ export default function MySeatPage() {
       setError(errMsg(e))
       setConfirm('')
       load()
-    } finally { setBusy(false) }
+    } finally { busyRef.current = false; setBusy(false) }
   }
+
+  const DIALOGS = {
+    cancel: {
+      title: '예약을 취소할까요?',
+      description: `${active?.seat_number || ''} 자리 예약이 취소되고, 다시 이용하려면 자리 화면에서 새로 골라야 해요.`,
+      confirmLabel: '예약 취소', tone: 'danger',
+    },
+    checkout: {
+      title: '퇴실할까요?',
+      description: `${active?.seat_number || ''} 자리 이용이 끝나고 다른 학우가 바로 예약할 수 있게 됩니다.`,
+      confirmLabel: '퇴실', tone: 'danger',
+    },
+    extend: {
+      title: '이용 시간을 연장할까요?',
+      description: `종료 시각이 ${fmtTime(usageEndIso(active))} → ${fmtTime(active?.extend_to)}로 바뀝니다.`,
+      confirmLabel: '연장하기', tone: 'primary',
+    },
+  }
+  const dialog = DIALOGS[confirm]
 
   const floor = floorOf(active?.seat_number)
 
@@ -88,6 +141,15 @@ export default function MySeatPage() {
       <PageTitle>내 자리</PageTitle>
 
       {error && <Notice tone="danger">{error}</Notice>}
+      {success && <Notice tone="success">{success}</Notice>}
+
+      {canExtend && (
+        <Notice
+          tone="info"
+          title={`지금 연장할 수 있어요 · ${fmtTime(active.usage_ends_at)} 종료 예정`}
+          action={<Button size="sm" onClick={() => setConfirm('extend')}>연장하기</Button>}
+        />
+      )}
 
       {loading ? (
         <LoadingBox />
@@ -110,6 +172,7 @@ export default function MySeatPage() {
           <p className="text-muted">
             {active.location || '—'}{floor ? ` · ${floor}층` : ''}
           </p>
+          {extendHint && <p className="text-muted my-seat-extend-hint">{extendHint}</p>}
 
           <div className="my-seat-actions mt-4">
             {/* 정지 중에는 체크인을 서버가 403으로 막으므로 버튼을 내린다.
@@ -118,6 +181,9 @@ export default function MySeatPage() {
               <Button onClick={() => navigate(`/checkin/${active.id}`)}>
                 <IconQr size={18} aria-hidden="true" /> QR 체크인
               </Button>
+            )}
+            {canExtend && (
+              <Button onClick={() => setConfirm('extend')}>연장하기</Button>
             )}
             <Button variant="secondary" onClick={() => navigate(seatMapPath(active.location))}>
               <IconSeatMap size={18} aria-hidden="true" /> 배치도에서 보기
@@ -161,14 +227,12 @@ export default function MySeatPage() {
         )}
       </Card>
 
-      {confirm && (
+      {dialog && (
         <ConfirmDialog
-          title={confirm === 'cancel' ? '예약을 취소할까요?' : '퇴실할까요?'}
-          description={confirm === 'cancel'
-            ? `${active?.seat_number || ''} 자리 예약이 취소되고, 다시 이용하려면 자리 화면에서 새로 골라야 해요.`
-            : `${active?.seat_number || ''} 자리 이용이 끝나고 다른 학우가 바로 예약할 수 있게 됩니다.`}
-          confirmLabel={confirm === 'cancel' ? '예약 취소' : '퇴실'}
-          tone="danger"
+          title={dialog.title}
+          description={dialog.description}
+          confirmLabel={dialog.confirmLabel}
+          tone={dialog.tone}
           busy={busy}
           onConfirm={run}
           onCancel={() => setConfirm('')}
