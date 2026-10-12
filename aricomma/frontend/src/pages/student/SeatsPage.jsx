@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { operationApi, reservationApi, seatApi } from '../../api/index.js'
 import OperationBanner from '../../components/OperationBanner.jsx'
 import {
-  Button, EmptyState, HomeTile, LoadingBox, Notice, PageTitle, SeatTile,
+  Button, ConfirmDialog, EmptyState, HomeTile, LoadingBox, Notice, PageTitle, SeatTile,
 } from '../../components/ui/index.js'
 import { IconBack } from '../../components/ui/icons.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
@@ -247,6 +247,9 @@ export default function SeatsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reserving, setReserving] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  // 확인 버튼을 연달아 눌러도 예약 요청은 한 번만 — state는 다음 렌더에야 바뀐다
+  const reservingRef = useRef(false)
   const [selectedId, setSelectedId] = useState(null)
   const [op, setOp] = useState(null)
   const [active, setActive] = useState(null)
@@ -278,7 +281,7 @@ export default function SeatsPage() {
   useEffect(() => { refreshUser?.().catch(() => {}); load(); loadOperation(); loadActive() }, [])
 
   // 방을 옮기면 이전 방에서 고른 자리는 버린다
-  useEffect(() => { setSelectedId(null); setError(''); scrolledRef.current = false }, [gender, roomKey])
+  useEffect(() => { setSelectedId(null); setConfirming(false); setError(''); scrolledRef.current = false }, [gender, roomKey])
 
   // 보기 전용으로 열면 내 자리가 화면 가운데 오게 한 번만 스크롤한다.
   // 칸은 배치도 안에 절대 위치로 놓여 있어 ref를 달기 어려우므로 그려진 뒤 찾는다.
@@ -395,25 +398,41 @@ export default function SeatsPage() {
     else navigate(-1)
   }
 
-  const handleReserve = async () => {
-    if (!selected) return
+  // 검사를 통과했을 때만 확인창을 띄운다 — 걸리면 오류 문구만
+  const handleReserve = () => {
+    if (!selected || closed) return
     if (!user?.is_verified) { setError('학생 인증이 필요합니다'); return }
     if (user?.is_suspended) { setError('계정이 정지 상태입니다'); return }
 
-    setError(''); setReserving(true)
+    setError(''); setConfirming(true)
+  }
+
+  const confirmReserve = async () => {
+    if (reservingRef.current) return
+    if (!selected) { setConfirming(false); return }
+    reservingRef.current = true
+    setReserving(true)
     try {
       const r = await reservationApi.create(selected.id)
       navigate(`/checkin/${r.data.id}`)
     } catch (e) {
+      setConfirming(false)
       setError(e.response?.data?.detail || '예약에 실패했습니다')
       setSelectedId(null)
       load()
       loadOperation()
       loadActive()
     } finally {
+      reservingRef.current = false
       setReserving(false)
     }
   }
+
+  // 평상시 마감(17시)으로 짧아지거나 시험기간 밤 규칙으로 길어질 때만 실제 종료 시각을 덧붙인다
+  const reserveDesc = '기본 이용 시간은 2시간이며 퇴실 30분 전부터 이용 시간을 연장할 수 있습니다.'
+    + (op && op.usage_minutes_if_checkin_now !== 120 && op.usage_ends_at_if_checkin_now
+      ? `\n지금 체크인하면 ${fmtTime(op.usage_ends_at_if_checkin_now)}까지 이용할 수 있어요.`
+      : '')
 
   return (
     <div>
@@ -455,7 +474,7 @@ export default function SeatsPage() {
             </span>
           </div>
           {user?.is_verified ? (
-            <Button onClick={handleReserve} loading={reserving} disabled={closed}
+            <Button onClick={handleReserve} disabled={closed}
               title={closed ? '지금은 이용 시간이 아니에요' : undefined}>
               {closed ? '이용 시간 아님' : '예약하기'}
             </Button>
@@ -463,6 +482,18 @@ export default function SeatsPage() {
             <Button onClick={() => navigate('/verify')}>인증하러 가기</Button>
           )}
         </div>
+      )}
+
+      {!readOnly && selected && confirming && (
+        <ConfirmDialog
+          title="예약하시겠습니까?"
+          description={reserveDesc}
+          confirmLabel="확인하였습니다."
+          cancelLabel="취소"
+          busy={reserving}
+          onConfirm={confirmReserve}
+          onCancel={() => setConfirming(false)}
+        />
       )}
 
       {!readOnly && (

@@ -144,7 +144,6 @@ export default function CheckinPage() {
       if (unmountedRef.current) return
       setUsageEnd(res.data?.usage_ends_at || '')
       setSuccess(true)
-      setTimeout(() => navigate('/home'), 2000)
     } catch (err) {
       if (unmountedRef.current) return
       const status = err.response?.status
@@ -266,12 +265,14 @@ export default function CheckinPage() {
   if (success) return (
     <Card elevated className="checkin-result">
       <IconCelebrate size={48} className="checkin-result-icon" aria-hidden="true" />
-      <h2 className="checkin-result-title">체크인 완료!</h2>
-      <p className="text-muted">자리 <span className="seat-no">{reservation.seat_number}</span> 이용이 시작되었습니다.</p>
+      <h2 className="checkin-result-title">{reservation.seat_number}번 자리 이용을 시작합니다.</h2>
+      <p className="checkin-result-desc">
+        {'기본 이용시간은 2시간이며,\n이용 종료 30분 전부터 연장이 가능합니다.\n일찍 이용을 종료할 경우 다른 학우들을 위해 반드시 퇴실 처리 부탁드립니다.'}
+      </p>
       {usageEnd && (
         <p className="usage-end-line">이용 종료 예정 <strong>{fmtTime(usageEnd)}</strong></p>
       )}
-      <p className="text-muted">잠시 후 홈으로 이동합니다...</p>
+      <Button block onClick={() => navigate('/home')}>확인</Button>
     </Card>
   )
 
