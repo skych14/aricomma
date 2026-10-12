@@ -22,6 +22,7 @@ from utils.operation import (
     usage_minutes,
 )
 from utils.settings_store import get_operation_mode, set_operation_mode
+from utils.rate_limit import client_ip
 
 router = APIRouter(tags=["settings"])
 
@@ -86,7 +87,7 @@ def update_operation_mode(
         target_type="setting",
         target_id="operation_mode",
         detail={"from": previous, "to": body.mode},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
     return build_status(db)

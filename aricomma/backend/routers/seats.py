@@ -13,6 +13,7 @@ from schemas.seat import SeatAdminResponse, SeatResponse, SeatUpdate
 from utils.audit import write_audit
 from utils.auth import get_current_admin, get_current_user
 from utils.expiry import expire_pending_reservations
+from utils.rate_limit import client_ip
 
 router = APIRouter(tags=["seats"])
 
@@ -132,7 +133,7 @@ def rotate_qr_all(
         target_type="seat",
         target_id=None,
         detail={"scope": "all_active", "rotated_count": len(seats)},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
     return {"rotated_count": len(seats)}
@@ -161,7 +162,7 @@ def rotate_qr(
         target_type="seat",
         target_id=seat.id,
         detail={"scope": "single", "seat_number": seat.seat_number, "location": seat.location},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
     return _to_admin_response(seat, db)
@@ -212,7 +213,7 @@ def update_seat(
         actor_id=current_admin.id,
         target_type="seat",
         target_id=seat.id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
     return SeatAdminResponse(

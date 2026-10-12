@@ -30,6 +30,7 @@ from utils.report_intake import (
     past_window,
     prepare_report,
 )
+from utils.rate_limit import client_ip
 
 router = APIRouter(tags=["reports"])
 
@@ -99,7 +100,7 @@ def create_report(
         target_type="report",
         target_id=report.id,
         detail={"seat_id": body.seat_id, "category": body.category, "when": body.when},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     db.commit()
     db.refresh(report)

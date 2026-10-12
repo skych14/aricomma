@@ -260,9 +260,13 @@ export default function CheckinPage() {
     if (occupiedBusy) return
     setOccupiedBusy(true); setError('')
     try {
-      await reservationApi.reportOccupied(rid)
+      const res = await reservationApi.reportOccupied(rid)
       navigate('/seats', {
-        state: { notice: '신고가 접수되고 예약이 취소됐어요. 다른 자리를 골라주세요.' },
+        state: {
+          notice: res.data?.already_reported
+            ? '이미 신고된 자리예요. 예약은 취소했어요. 다른 자리를 골라주세요.'
+            : '신고가 접수되고 예약이 취소됐어요. 다른 자리를 골라주세요.',
+        },
       })
     } catch (err) {
       if (unmountedRef.current) return

@@ -24,6 +24,14 @@ SOURCE_REPORT_PAGE = "report_page"
 SOURCE_CHECKIN = "checkin"
 
 
+class DuplicateReport(HTTPException):
+    """같은 자리·같은 유형·겹치는 구간의 본인 신고가 이미 있다."""
+
+    def __init__(self, existing_id: str):
+        super().__init__(status_code=400, detail="이미 접수된 신고예요")
+        self.existing_id = existing_id
+
+
 def live_window(now: datetime) -> Tuple[datetime, datetime]:
     """"지금 일어나고 있어요" — 지금까지의 15분."""
     return now - timedelta(minutes=WINDOW_MINUTES), now
@@ -96,7 +104,7 @@ def prepare_report(
         .first()
     )
     if duplicate:
-        raise HTTPException(status_code=400, detail="이미 접수된 신고예요")
+        raise DuplicateReport(duplicate.id)
 
     # 그 시간대에 그 좌석을 쓴 사람이 본인뿐이면 신고 대상이 없다.
     # (아무도 안 썼으면 관리자가 '대상 확인 불가'로 종결할 수 있도록 접수는 받는다)

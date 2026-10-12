@@ -136,7 +136,7 @@ def update_user(
             target_type="user",
             target_id=user.id,
             detail={"student_id": user.student_id, **changes},
-            ip_address=request.client.host if request.client else None,
+            ip_address=client_ip(request),
             commit=True,
         )
         db.refresh(user)

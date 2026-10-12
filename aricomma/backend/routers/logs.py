@@ -1,5 +1,6 @@
+import json
 from datetime import date, datetime, time, timedelta
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models.audit_log import AuditLog
+from models.reservation import Reservation
 from models.seat import Seat
 from models.usage_log import UsageLog
 from models.user import User
@@ -44,6 +46,7 @@ def my_usage_logs(
                 performed_at=log.performed_at,
                 note=log.note,
                 seat_number=seat.seat_number if seat else None,
+                location=seat.location if seat else None,
                 user_name=current_user.name,
             )
         )
@@ -81,10 +84,58 @@ def admin_usage_logs(
                 performed_at=log.performed_at,
                 note=log.note,
                 seat_number=seat.seat_number if seat else None,
+                location=seat.location if seat else None,
                 user_name=user.name if user else None,
             )
         )
     return result
+
+
+def _detail_seat_id(detail: Optional[str]) -> Optional[str]:
+    """감사 로그 detail(JSON 문자열)에 적힌 seat_id."""
+    if not detail:
+        return None
+    try:
+        parsed = json.loads(detail)
+    except ValueError:
+        return None
+    seat_id = parsed.get("seat_id") if isinstance(parsed, dict) else None
+    return seat_id if isinstance(seat_id, str) else None
+
+
+def _audit_seat_labels(db: Session, logs: List[AuditLog]) -> Dict[str, str]:
+    """한 페이지의 감사 로그가 가리키는 자리 이름을 {로그 id: "방 번호"}로.
+
+    detail의 seat_id → 대상이 예약이면 그 예약의 자리 → 대상이 자리면 그 자리 순으로 찾는다.
+    행마다 따로 조회하지 않도록 예약·자리를 각각 한 번에 읽는다.
+    """
+    seat_of: Dict[str, str] = {}             # 로그 id → seat_id (바로 알 수 있는 것)
+    reservation_of: Dict[str, str] = {}      # 로그 id → 예약 id (예약을 거쳐야 하는 것)
+    for log in logs:
+        seat_id = _detail_seat_id(log.detail)
+        if seat_id:
+            seat_of[log.id] = seat_id
+        elif log.target_type == "reservation" and log.target_id:
+            reservation_of[log.id] = log.target_id
+        elif log.target_type == "seat" and log.target_id:
+            seat_of[log.id] = log.target_id
+
+    if reservation_of:
+        rows = (
+            db.query(Reservation.id, Reservation.seat_id)
+            .filter(Reservation.id.in_(set(reservation_of.values())))
+            .all()
+        )
+        seat_by_reservation = {rid: seat_id for rid, seat_id in rows}
+        for log_id, rid in reservation_of.items():
+            if rid in seat_by_reservation:
+                seat_of[log_id] = seat_by_reservation[rid]
+
+    if not seat_of:
+        return {}
+    seats = db.query(Seat).filter(Seat.id.in_(set(seat_of.values()))).all()
+    label = {s.id: f"{s.location} {s.seat_number}" for s in seats}
+    return {log_id: label[seat_id] for log_id, seat_id in seat_of.items() if seat_id in label}
 
 
 def _like_pattern(term: str) -> str:
@@ -134,6 +185,8 @@ def admin_audit_logs(
         .all()
     )
 
+    seat_labels = _audit_seat_labels(db, [log for log, _ in rows])
+
     items = []
     for log, user in rows:
         if user:
@@ -153,6 +206,7 @@ def admin_audit_logs(
                 ip_address=log.ip_address,
                 created_at=log.created_at,
                 actor_name=actor_name,
+                seat_label=seat_labels.get(log.id),
             )
         )
     return AuditLogPage(items=items, total=total, page=page, page_size=page_size)

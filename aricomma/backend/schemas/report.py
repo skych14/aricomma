@@ -28,6 +28,8 @@ class ReportCreate(BaseModel):
 class OccupiedReportResponse(BaseModel):
     report_id: str
     cancelled: bool = True
+    # 같은 자리·같은 시간대 신고가 이미 있어 새 신고 없이 예약만 취소한 경우
+    already_reported: bool = False
 
 
 class ReportMine(BaseModel):
@@ -64,6 +66,7 @@ class ReportAdmin(BaseModel):
     created_at: datetime
     is_live: bool = False
     source: Optional[str] = None
+    seat_is_active: Optional[bool] = None   # 신고 상세의 "이 자리 잠시 사용 중지"용
     reporter_id: str
     reporter_name: Optional[str] = None
     reporter_student_id: Optional[str] = None
@@ -128,6 +131,7 @@ class PenaltyAdmin(PenaltyMine):
     user_name: Optional[str] = None
     user_student_id: Optional[str] = None
     report_id: Optional[str] = None
+    seat_label: Optional[str] = None   # 신고에서 나온 패널티면 그 신고의 자리 "방 번호"
     issued_by: str
     issued_by_name: Optional[str] = None
     revoked_at: Optional[datetime] = None

@@ -25,6 +25,7 @@ from utils.upload_files import (
     is_valid_upload,
     upload_exists,
 )
+from utils.rate_limit import client_ip
 
 router = APIRouter(tags=["verifications"])
 
@@ -100,7 +101,7 @@ async def submit_verification(
         actor_id=current_user.id,
         target_type="verification",
         target_id=verification.id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
     return verification
@@ -220,7 +221,7 @@ def admin_review_verification(
         target_type="verification",
         target_id=v.id,
         detail={"user_id": v.user_id, "admin_note": note or None, "file_deleted": deleted},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
 

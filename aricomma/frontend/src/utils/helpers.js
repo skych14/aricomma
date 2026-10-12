@@ -176,6 +176,66 @@ export function auditActionLabel(code) {
   return AUDIT_ACTION_KO[code] || code
 }
 
+/** 자리 이름은 항상 방까지 — 번호가 방마다 겹친다 (남/여 일반방 모두 A2-2). */
+export function seatLabel(location, seatNumber) {
+  return [location, seatNumber].filter(Boolean).join(' ') || '—'
+}
+
+// 감사 로그의 대상 종류(target_type)
+const TARGET_TYPE_KO = {
+  user: '사용자', reservation: '예약', seat: '자리', verification: '인증',
+  report: '신고', setting: '설정', ip: 'IP', email: '이메일',
+}
+
+export function targetTypeLabel(type) {
+  return type ? (TARGET_TYPE_KO[type] || type) : '—'
+}
+
+// 감사 로그 상세(detail)의 항목 이름. 여기 없는 항목은 원래 이름 그대로 보여준다.
+const AUDIT_DETAIL_KO = {
+  seat_number: '자리 번호', mode: '운영 모드', usage_ends_at: '종료 예정',
+  previous_usage_ends_at: '이전 종료 예정', extension_count: '연장 횟수',
+  student_id: '학번', email: '이메일', name: '이름', is_suspended: '정지',
+  is_verified: '인증', reason: '사유', failed_count: '실패 횟수',
+  locked_until: '잠금 해제', level: '단계', ends_at: '종료', admin_note: '메모',
+  action: '처리', category: '유형', from: '변경 전', to: '변경 후',
+  file_deleted: '파일 삭제', cancelled: '취소된 예약', checked_out: '퇴실 처리된 예약',
+  threshold: '기준', block_seconds: '차단 시간(초)', path: '경로',
+}
+
+export function auditDetailLabel(key) {
+  return AUDIT_DETAIL_KO[key] || key
+}
+
+/** seat_id·user_id 같은 내부 ID 항목인지 (학번 student_id는 사람이 읽는 값이라 제외) */
+export function isAuditIdKey(key) {
+  return /(^|_)id$/.test(key) && !AUDIT_DETAIL_KO[key]
+}
+
+// 감사 로그 상세의 코드 값 → 사람이 읽는 말
+const AUDIT_VALUE_KO = {
+  true: '예', false: '아니오', True: '예', False: '아니오',
+  standard: '평상시', extended: '시험기간',
+  ...Object.fromEntries(PENALTY_LEVELS.map(l => [l.key, l.label])),
+  ...Object.fromEntries(REPORT_CATEGORIES.map(c => [c.key, c.label])),
+  penalize: '패널티 부과', no_target: '대상 확인 불가', reject: '반려',
+}
+
+const UTC_DATETIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/
+
+/** 감사 로그 상세 값. 날짜·시각은 UTC로 보고 한국시간 "10. 12. 18:00"으로 바꾼다. */
+export function auditDetailValue(v) {
+  if (v === null || v === undefined || v === 'None') return '—'
+  if (typeof v === 'object') return JSON.stringify(v)
+  const s = String(v)
+  if (Object.hasOwn(AUDIT_VALUE_KO, s)) return AUDIT_VALUE_KO[s]
+  if (UTC_DATETIME.test(s)) {
+    const iso = s.replace(' ', 'T')
+    return `${fmtMonthDay(iso)} ${fmtTime(iso)}`
+  }
+  return s
+}
+
 export function errMsg(e) {
   return e?.response?.data?.detail || e?.message || '오류가 발생했습니다'
 }

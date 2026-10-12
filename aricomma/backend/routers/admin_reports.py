@@ -45,6 +45,7 @@ from utils.penalty import (
     week_end,
 )
 from utils.settings_store import get_value, set_value
+from utils.rate_limit import client_ip
 
 router = APIRouter(tags=["admin-reports"])
 
@@ -71,6 +72,7 @@ def _to_admin(r: Report, db: Session) -> ReportAdmin:
         created_at=r.created_at,
         is_live=bool(r.is_live),
         source=r.source,
+        seat_is_active=seat.is_active if seat else None,
         reporter_id=r.reporter_id,
         reporter_name=reporter.name if reporter else None,
         reporter_student_id=reporter.student_id if reporter else None,
@@ -85,6 +87,11 @@ def _to_admin(r: Report, db: Session) -> ReportAdmin:
 def _to_penalty_admin(p: Penalty, db: Session) -> PenaltyAdmin:
     user = db.query(User).filter(User.id == p.user_id).first()
     issuer = db.query(User).filter(User.id == p.issued_by).first()
+    seat = (
+        db.query(Seat).join(Report, Report.seat_id == Seat.id)
+        .filter(Report.id == p.report_id).first()
+        if p.report_id else None
+    )
     return PenaltyAdmin(
         id=p.id,
         level=p.level,
@@ -99,6 +106,7 @@ def _to_penalty_admin(p: Penalty, db: Session) -> PenaltyAdmin:
         user_name=user.name if user else None,
         user_student_id=user.student_id if user else None,
         report_id=p.report_id,
+        seat_label=f"{seat.location} {seat.seat_number}" if seat else None,
         issued_by=p.issued_by,
         issued_by_name=issuer.name if issuer else None,
         revoked_at=p.revoked_at,
@@ -302,7 +310,7 @@ def review_report(
         target_type="report",
         target_id=r.id,
         detail=audit_detail,
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     if body.action == "penalize":
         write_audit(
@@ -312,7 +320,7 @@ def review_report(
             target_type="user",
             target_id=body.accused_user_id,
             detail=audit_detail,
-            ip_address=request.client.host if request.client else None,
+            ip_address=client_ip(request),
         )
     db.commit()
     db.refresh(r)
@@ -375,7 +383,7 @@ def revoke_penalty(
         target_type="user",
         target_id=p.user_id,
         detail={"penalty_id": p.id, "level": p.level, "suspension_lifted": lifted},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
     db.refresh(p)
@@ -401,7 +409,7 @@ def reset_penalty_counter(
         target_type="setting",
         target_id=COUNTER_RESET_KEY,
         detail={"from": previous, "to": now.isoformat()},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
         commit=True,
     )
     return CounterResetResponse(reset_at=now)

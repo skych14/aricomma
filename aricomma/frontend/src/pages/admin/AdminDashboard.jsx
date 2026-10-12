@@ -2,7 +2,7 @@ import React, { Fragment, useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminUserApi, logApi, operationApi, reportApi, reservationApi, seatApi, verificationApi } from '../../api/index.js'
 import {
-  Button, Card, ConfirmDialog, EmptyState, LoadingBox, Modal,
+  Button, Card, ConfirmDialog, DataList, EmptyState, LoadingBox, Modal,
   Notice, PageTitle, StatusBadge, Tabs, TextField,
 } from '../../components/ui/index.js'
 import {
@@ -11,7 +11,8 @@ import {
 } from '../../components/ui/icons.jsx'
 import {
   AUDIT_ACTION_KO, PENALTY_LEVELS, compareSeatsByRoom, errMsg, fmtDate, fmtDatetime, fmtMonthDay, fmtTime, parseUTC,
-  actionLabel, auditActionLabel, penaltyLevelLabel, statusLabel,
+  actionLabel, auditActionLabel, auditDetailLabel, auditDetailValue, isAuditIdKey,
+  penaltyLevelLabel, seatLabel, statusLabel, targetTypeLabel,
 } from '../../utils/helpers.js'
 
 const ICON = 16
@@ -26,6 +27,7 @@ function OperationModeCard({ op, onChanged }) {
 
   const isExtended = op.mode === 'extended'
   const nextMode = isExtended ? 'standard' : 'extended'
+  const nextLabel = isExtended ? '평상시 7시간' : '시험기간 24시간'
   const confirmText = isExtended
     ? '평상시 모드로 바꾸면 10:00~17:00에만 예약할 수 있습니다. 지금 이용 중인 학생의 종료 시간은 그대로 유지됩니다. 진행할까요?'
     : '시험기간 모드로 바꾸면 24시간 예약이 가능해집니다. 지금 이용 중인 학생의 종료 시간은 그대로 유지됩니다. 진행할까요?'
@@ -41,7 +43,8 @@ function OperationModeCard({ op, onChanged }) {
   }
 
   return (
-    <Card elevated title="운영 모드">
+    <Card elevated title="운영 모드" className="op-card">
+      {/* 휴대폰에서는 배지·예약 가능 여부를 한 줄에, 설명은 그 아래로 (index.css) */}
       <div className="op-card-now">
         <StatusBadge tone={isExtended ? 'brand' : 'ok'} label={op.mode_label} />
         <span className="op-card-hours">
@@ -49,21 +52,20 @@ function OperationModeCard({ op, onChanged }) {
             ? '24시간 개방 · 기본 2시간 (22:00~09:00 체크인은 최대 7시간)'
             : `오늘 이용 시간 ${fmtTime(op.opens_at)}~${fmtTime(op.closes_at)} · 기본 2시간`}
         </span>
+        <div className="op-card-state">
+          {op.is_open_now
+            ? <span className="op-card-open">지금 예약 가능</span>
+            : <span className="op-card-closed">지금은 이용 시간 아님 · 다음 열림 {fmtTime(op.next_open_at)}</span>}
+        </div>
       </div>
 
-      <div className="op-card-state">
-        {op.is_open_now
-          ? <span className="op-card-open">지금 예약 가능</span>
-          : <span className="op-card-closed">지금은 이용 시간 아님 · 다음 열림 {fmtTime(op.next_open_at)}</span>}
-      </div>
-
-      <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
-        {isExtended ? '평상시 7시간 모드로 전환' : '시험기간 24시간 모드로 전환'}
+      <Button variant="secondary" size="sm" className="op-card-switch" onClick={() => setConfirming(true)}>
+        {nextLabel} 모드로 전환
       </Button>
 
       {confirming && (
         <ConfirmDialog
-          title="운영 모드를 바꿀까요?"
+          title={`${nextLabel} 모드로 바꿀까요?`}
           description={confirmText}
           confirmLabel="전환"
           error={error}
@@ -271,39 +273,37 @@ function SeatsTab() {
     catch (e) { setError(errMsg(e)) }
   }
 
+  const columns = [
+    { key: 'number', label: '번호', cell: s => <strong>{s.seat_number}</strong> },
+    {
+      key: 'gender', label: '학우실',
+      cell: s => (
+        <StatusBadge tone={s.room_gender === 'male' ? 'brand' : 'neutral'}
+          label={s.room_gender === 'male' ? '남학우실' : '여학우실'} />
+      ),
+    },
+    { key: 'location', label: '위치', cell: s => s.location },
+    { key: 'floor', label: '층', cell: s => `${s.floor}층` },
+    { key: 'bunk', label: '침대조', cell: s => s.bunk_group },
+    { key: 'status', label: '현황', cell: s => <StatusBadge status={s.current_status} /> },
+    {
+      key: 'active', label: '활성',
+      cell: s => (
+        <Button size="sm" variant={s.is_active ? 'primary' : 'secondary'}
+          onClick={() => toggleActive(s)}>
+          {s.is_active ? '활성' : '비활성'}
+        </Button>
+      ),
+    },
+  ]
+
   return (
     <div>
       {error && <Notice tone="danger">{error}</Notice>}
 
       {loading ? <LoadingBox /> : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>번호</th><th>학우실</th><th>위치</th><th>층</th><th>침대조</th><th>현황</th><th>활성</th></tr>
-            </thead>
-            <tbody>
-              {seats.map(s => (
-                <tr key={s.id}>
-                  <td><strong>{s.seat_number}</strong></td>
-                  <td>
-                    <StatusBadge tone={s.room_gender === 'male' ? 'brand' : 'neutral'}
-                      label={s.room_gender === 'male' ? '남학우실' : '여학우실'} />
-                  </td>
-                  <td>{s.location}</td>
-                  <td>{s.floor}층</td>
-                  <td>{s.bunk_group}</td>
-                  <td><StatusBadge status={s.current_status} /></td>
-                  <td>
-                    <Button size="sm" variant={s.is_active ? 'primary' : 'secondary'}
-                      onClick={() => toggleActive(s)}>
-                      {s.is_active ? '활성' : '비활성'}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataList columns={columns} rows={seats} rowKey={s => s.id}
+          cardTitle={{ main: ['number', 'status'], end: ['active'] }} />
       )}
 
       <Notice tone="info" title="QR 스티커 안내">
@@ -318,6 +318,27 @@ function SeatsTab() {
 const RESERVATION_SUBTABS = [
   { key: 'reservations', label: '예약 목록' },
   { key: 'usage', label: '이용 로그' },
+]
+
+// 표(PC)와 카드(휴대폰)가 같이 쓰는 열 정의
+const RESERVATION_COLUMNS = [
+  { key: 'student', label: '학생', cell: r => r.user_name },
+  { key: 'sid', label: '학번', cell: r => r.user_student_id },
+  { key: 'seat', label: '자리', cell: r => seatLabel(r.location, r.seat_number) },
+  { key: 'reserved', label: '예약 시간', cell: r => fmtDatetime(r.reserved_at) },
+  { key: 'status', label: '상태', cell: r => <StatusBadge status={r.status} /> },
+  { key: 'checkin', label: '체크인', cell: r => fmtDatetime(r.checked_in_at) },
+  { key: 'end', label: '종료 예정', cell: r => (r.usage_ends_at ? fmtTime(r.usage_ends_at) : null) },
+  { key: 'ext', label: '연장', cell: r => (r.extension_count ? `${r.extension_count}회` : null) },
+  { key: 'checkout', label: '퇴실', cell: r => fmtDatetime(r.checked_out_at) },
+]
+
+const USAGE_COLUMNS = [
+  { key: 'time', label: '시간', cell: l => fmtDatetime(l.performed_at) },
+  { key: 'student', label: '학생', cell: l => l.user_name },
+  { key: 'seat', label: '자리', cell: l => seatLabel(l.location, l.seat_number) },
+  { key: 'action', label: '행동', cell: l => <StatusBadge status={l.action} label={actionLabel(l.action)} /> },
+  { key: 'note', label: '메모', className: 'text-muted', cell: l => l.note },
 ]
 
 function ReservationsTab() {
@@ -345,53 +366,12 @@ function ReservationsTab() {
       {error && <Notice tone="danger">{error}</Notice>}
       <Tabs items={RESERVATION_SUBTABS} value={tab2} onChange={setTab2} label="로그 종류" />
       {tab2 === 'reservations' ? (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>학생</th><th>학번</th><th>자리</th><th>예약 시간</th><th>상태</th><th>체크인</th><th>종료 예정</th><th>연장</th><th>퇴실</th></tr>
-            </thead>
-            <tbody>
-              {reservations.map(r => (
-                <tr key={r.id}>
-                  <td>{r.user_name || '—'}</td>
-                  <td>{r.user_student_id || '—'}</td>
-                  <td>{r.seat_number || '—'}</td>
-                  <td>{fmtDatetime(r.reserved_at)}</td>
-                  <td><StatusBadge status={r.status} /></td>
-                  <td>{fmtDatetime(r.checked_in_at)}</td>
-                  <td>{r.usage_ends_at ? fmtTime(r.usage_ends_at) : '—'}</td>
-                  <td>{r.extension_count ? `${r.extension_count}회` : '—'}</td>
-                  <td>{fmtDatetime(r.checked_out_at)}</td>
-                </tr>
-              ))}
-              {reservations.length === 0 && (
-                <tr><td colSpan={9}><EmptyState title="내역 없음" compact /></td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataList columns={RESERVATION_COLUMNS} rows={reservations} rowKey={r => r.id}
+          cardTitle={{ main: ['student', 'sid'], end: ['status'] }}
+          cardBody={['seat', 'reserved', 'status', 'checkin', 'end', 'checkout', 'ext']} />
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>시간</th><th>학생</th><th>자리</th><th>행동</th><th>메모</th></tr>
-            </thead>
-            <tbody>
-              {logs.map(l => (
-                <tr key={l.id}>
-                  <td>{fmtDatetime(l.performed_at)}</td>
-                  <td>{l.user_name || '—'}</td>
-                  <td>{l.seat_number || '—'}</td>
-                  <td><StatusBadge status={l.action} label={actionLabel(l.action)} /></td>
-                  <td className="text-muted">{l.note || '—'}</td>
-                </tr>
-              ))}
-              {logs.length === 0 && (
-                <tr><td colSpan={5}><EmptyState title="내역 없음" compact /></td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataList columns={USAGE_COLUMNS} rows={logs} rowKey={l => l.id}
+          cardTitle={{ main: ['action', 'seat'] }} />
       )}
     </div>
   )
@@ -399,7 +379,18 @@ function ReservationsTab() {
 
 // ── 탭 4: 감사 로그 ──────────────────────────────────────────────────────
 const AUDIT_PAGE_SIZE = 50
-const AUDIT_COLUMNS = 6
+const AUDIT_COLUMNS = [
+  { key: 'time', label: '시간', cell: l => fmtDatetime(l.created_at) },
+  { key: 'actor', label: '행위자', cell: l => l.actor_name || '시스템' },
+  { key: 'action', label: '액션', cell: l => auditActionLabel(l.action_type) },
+  { key: 'seat', label: '자리', cell: l => l.seat_label },
+  { key: 'ttype', label: '대상 종류', cell: l => targetTypeLabel(l.target_type) },
+  {
+    key: 'tid', label: '대상 ID', className: 'mono-id cell-id',
+    cell: l => (l.target_id ? l.target_id.slice(0, 8) + '…' : null),
+  },
+  { key: 'ip', label: 'IP', className: 'text-muted', cell: l => l.ip_address },
+]
 const AUDIT_NO_FILTERS = { date_from: '', date_to: '', action_type: '', q: '' }
 
 /** 현재 앞뒤 2개 + 처음·끝. 건너뛴 구간은 null로 표시한다. */
@@ -416,25 +407,44 @@ function auditDetailEntries(detail) {
   try {
     const parsed = JSON.parse(detail)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-    return Object.entries(parsed).map(([k, v]) => [
-      k, v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v),
-    ])
+    return Object.entries(parsed)
   } catch { return null }
 }
 
+/**
+ * 감사 로그 한 건의 상세. 항목 이름·코드 값은 한글로, 시각은 한국시간으로 바꿔 보여주고
+ * seat_id 같은 내부 ID는 숨기지 않고 맨 아래 "참고 ID"에 전체 값으로 모은다.
+ */
 function AuditDetail({ log }) {
   const entries = log.detail ? auditDetailEntries(log.detail) : null
+  const fields = (entries || []).filter(([k]) => !isAuditIdKey(k))
+  const ids = [
+    ...(log.target_id ? [['대상 ID', log.target_id]] : []),
+    ...(log.actor_id ? [['행위자 ID', log.actor_id]] : []),
+    ...(entries || []).filter(([k]) => isAuditIdKey(k)).map(([k, v]) => [k, v === null ? '—' : String(v)]),
+  ]
   return (
     <div className="audit-detail-body">
       <dl>
-        <dt>대상 ID</dt>
-        <dd className="mono-id">{log.target_id || '—'}</dd>
-        {entries
-          ? entries.map(([k, v]) => (
-            <Fragment key={k}><dt>{k}</dt><dd>{v}</dd></Fragment>
-          ))
-          : <><dt>상세</dt><dd>{log.detail || '—'}</dd></>}
+        {log.seat_label && <><dt>자리</dt><dd>{log.seat_label}</dd></>}
+        {fields.map(([k, v]) => (
+          <Fragment key={k}><dt>{auditDetailLabel(k)}</dt><dd>{auditDetailValue(v)}</dd></Fragment>
+        ))}
+        {log.detail && !entries && <><dt>상세</dt><dd>{log.detail}</dd></>}
+        {!log.seat_label && fields.length === 0 && !(log.detail && !entries) && (
+          <><dt>상세</dt><dd>—</dd></>
+        )}
       </dl>
+      {ids.length > 0 && (
+        <div className="audit-detail-ids">
+          <div className="audit-detail-ids-title">참고 ID</div>
+          <dl>
+            {ids.map(([k, v]) => (
+              <Fragment key={k}><dt>{k}</dt><dd className="mono-id">{v}</dd></Fragment>
+            ))}
+          </dl>
+        </div>
+      )}
     </div>
   )
 }
@@ -497,43 +507,10 @@ function AuditTab() {
       {error && <Notice tone="danger">{error}</Notice>}
       {loading ? <LoadingBox /> : error ? null : (
         <>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>시간</th><th>행위자</th><th>액션</th><th>대상 종류</th><th>대상 ID</th><th>IP</th></tr>
-              </thead>
-              <tbody>
-                {items.map(l => {
-                  const open = openId === l.id
-                  return (
-                    <Fragment key={l.id}>
-                      <tr className={`audit-row${open ? ' is-open' : ''}`} tabIndex={0}
-                        aria-expanded={open} data-audit-id={l.id}
-                        onClick={() => toggle(l.id)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(l.id) }
-                        }}>
-                        <td>{fmtDatetime(l.created_at)}</td>
-                        <td>{l.actor_name || '시스템'}</td>
-                        <td>{auditActionLabel(l.action_type)}</td>
-                        <td>{l.target_type || '—'}</td>
-                        <td className="mono-id cell-id">{l.target_id ? l.target_id.slice(0, 8) + '…' : '—'}</td>
-                        <td className="text-muted">{l.ip_address || '—'}</td>
-                      </tr>
-                      {open && (
-                        <tr className="audit-detail">
-                          <td colSpan={AUDIT_COLUMNS}><AuditDetail log={l} /></td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  )
-                })}
-                {items.length === 0 && (
-                  <tr><td colSpan={AUDIT_COLUMNS}><EmptyState title="조건에 맞는 기록이 없어요" compact /></td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataList columns={AUDIT_COLUMNS} rows={items} rowKey={l => l.id}
+            cardTitle={{ main: ['action', 'seat'] }}
+            empty="조건에 맞는 기록이 없어요"
+            openKey={openId} onToggle={toggle} renderDetail={l => <AuditDetail log={l} />} />
 
           <div className="audit-pager">
             <span className="audit-pager-summary">
@@ -600,6 +577,19 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // 현장 확인 전까지 자리를 잠시 막기 (자리 관리 탭의 활성 토글과 같은 API)
+  const [seatActive, setSeatActive] = useState(report.seat_is_active !== false)
+  const [pausing, setPausing] = useState(false)
+  const [pauseBusy, setPauseBusy] = useState(false)
+
+  const pauseSeat = async () => {
+    setPauseBusy(true); setError('')
+    try {
+      await seatApi.update(report.seat_id, { is_active: false })
+      setSeatActive(false)
+    } catch (e) { setError(errMsg(e)) }
+    finally { setPauseBusy(false); setPausing(false) }
+  }
 
   useEffect(() => {
     reportApi.adminCandidates(report.id)
@@ -646,7 +636,11 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
       <div className="report-detail">
         <div className="report-detail-row"><span>유형</span><strong>{report.category_label}</strong></div>
         <div className="report-detail-row">
-          <span>자리</span><strong>{report.location} {report.seat_number}</strong>
+          <span>자리</span>
+          <strong>
+            {seatLabel(report.location, report.seat_number)}
+            {!seatActive && <> <StatusBadge tone="neutral" label="사용 중지됨" /></>}
+          </strong>
         </div>
         <div className="report-detail-row">
           <span>시간대</span>
@@ -661,6 +655,13 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
         </div>
       </div>
       {report.memo && <div className="report-detail-memo">{report.memo}</div>}
+      {seatActive && (
+        <div className="report-detail-actions">
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => setPausing(true)}>
+            이 자리 잠시 사용 중지
+          </Button>
+        </div>
+      )}
 
       <h3 className="section-title section-title--spaced">그 시간대 이용자</h3>
       {candidates === null ? (
@@ -754,6 +755,17 @@ function ReportDetailModal({ report, onClose, onReviewed }) {
           onCancel={() => setConfirming(false)}
         />
       )}
+
+      {pausing && (
+        <ConfirmDialog
+          title="이 자리를 잠시 사용 중지할까요?"
+          description="현장 확인 전까지 이 자리를 예약할 수 없게 할까요? 자리 관리 탭에서 다시 켤 수 있어요."
+          confirmLabel="사용 중지"
+          busy={pauseBusy}
+          onConfirm={pauseSeat}
+          onCancel={() => setPausing(false)}
+        />
+      )}
     </Modal>
   )
 }
@@ -795,7 +807,7 @@ function ReportsTab({ onPendingCount }) {
               <div className="record-card-head">
                 <div>
                   <strong>{r.category_label}</strong>{' '}
-                  <span className="text-muted">{r.location} {r.seat_number}</span>
+                  <span className="text-muted">{seatLabel(r.location, r.seat_number)}</span>
                 </div>
                 <StatusBadge status={r.status} label={r.status_label} />
               </div>
@@ -877,6 +889,7 @@ function PenaltyListModal({ user, onClose, onChanged }) {
                 {p.ends_at && <> ~ {fmtDatetime(p.ends_at)}</>}
                 {p.acknowledged_at && ' · 학생 확인함'}
               </div>
+              {p.seat_label && <div className="record-card-meta">자리 {p.seat_label}</div>}
               <div className="record-card-note">{p.reason}</div>
               {!p.revoked_at && (
                 <div className="record-card-actions">
@@ -1269,7 +1282,7 @@ export default function AdminDashboard() {
 
       <OperationModeCard op={op} onChanged={setOp} />
 
-      <Tabs items={TABS} value={tab} onChange={setTab} label="관리 항목" />
+      <Tabs items={TABS} value={tab} onChange={setTab} label="관리 항목" className="admin-tabs" />
 
       {tab === 'verifications' && <VerificationsTab onPendingCount={loadPendingCount} />}
       {tab === 'reports' && <ReportsTab onPendingCount={loadPendingReports} />}

@@ -40,7 +40,12 @@ from utils.operation import (
     to_utc,
 )
 from utils.rate_limit import client_ip
-from utils.report_intake import SOURCE_CHECKIN, live_window, prepare_report
+from utils.report_intake import (
+    SOURCE_CHECKIN,
+    DuplicateReport,
+    live_window,
+    prepare_report,
+)
 from utils.settings_store import get_operation_mode
 
 router = APIRouter(tags=["reservations"])
@@ -163,7 +168,7 @@ def create_reservation(
         target_type="reservation",
         target_id=reservation.id,
         detail={"seat_id": body.seat_id, "seat_number": seat.seat_number},
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     db.commit()
     db.refresh(reservation)
@@ -222,7 +227,7 @@ def cancel_reservation(
         actor_id=current_user.id,
         target_type="reservation",
         target_id=r.id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     db.commit()
 
@@ -238,6 +243,7 @@ def report_occupied(
     예약한 자리에 가보니 다른 사람이 있을 때: 미퇴실로 신고하고 내 예약을 취소한다.
 
     신고와 취소는 한 트랜잭션이다. 신고가 거절되면(하루 3건 제한 등) 예약도 그대로 둔다.
+    단, 같은 자리를 이미 신고해 둔 경우에는 새 신고 없이 예약만 취소한다.
     """
     expire_pending_reservations(db)
 
@@ -255,12 +261,17 @@ def report_occupied(
 
     now = datetime.utcnow()
     occurred_from, occurred_to = live_window(now)
-    # 걸리면 여기서 예외가 나가고 아무것도 바뀌지 않는다
-    report = prepare_report(
-        db, current_user, seat, "no_checkout", occurred_from, occurred_to,
-        "예약 후 자리에 가보니 다른 사람이 사용 중",
-        is_live=True, source=SOURCE_CHECKIN, now=now,
-    )
+    # 걸리면 여기서 예외가 나가고 아무것도 바뀌지 않는다 (이미 신고한 자리만 예외)
+    already_reported = False
+    try:
+        report_id = prepare_report(
+            db, current_user, seat, "no_checkout", occurred_from, occurred_to,
+            "예약 후 자리에 가보니 다른 사람이 사용 중",
+            is_live=True, source=SOURCE_CHECKIN, now=now,
+        ).id
+    except DuplicateReport as dup:
+        already_reported = True
+        report_id = dup.existing_id
 
     r.status = "cancelled"
     db.add(UsageLog(
@@ -270,32 +281,39 @@ def report_occupied(
         seat_id=r.seat_id,
         action="cancelled",
         performed_at=now,
-        note="자리에 다른 사람이 있어 신고 후 취소",
+        note="이미 신고한 자리라 예약만 취소" if already_reported
+        else "자리에 다른 사람이 있어 신고 후 취소",
     ))
     ip = client_ip(request)
-    write_audit(
-        db,
-        action_type="REPORT_CREATE",
-        actor_id=current_user.id,
-        target_type="report",
-        target_id=report.id,
-        detail={
-            "seat_id": r.seat_id, "category": "no_checkout", "when": "now",
-            "source": SOURCE_CHECKIN, "reservation_id": r.id,
-        },
-        ip_address=ip,
-    )
+    if not already_reported:
+        write_audit(
+            db,
+            action_type="REPORT_CREATE",
+            actor_id=current_user.id,
+            target_type="report",
+            target_id=report_id,
+            detail={
+                "seat_id": r.seat_id, "category": "no_checkout", "when": "now",
+                "source": SOURCE_CHECKIN, "reservation_id": r.id,
+            },
+            ip_address=ip,
+        )
     write_audit(
         db,
         action_type="RESERVATION_CANCEL",
         actor_id=current_user.id,
         target_type="reservation",
         target_id=r.id,
-        detail={"reason": "occupied_report", "report_id": report.id},
+        detail={
+            "reason": "occupied_report", "report_id": report_id,
+            "already_reported": already_reported,
+        },
         ip_address=ip,
     )
     db.commit()
-    return OccupiedReportResponse(report_id=report.id, cancelled=True)
+    return OccupiedReportResponse(
+        report_id=report_id, cancelled=True, already_reported=already_reported
+    )
 
 
 @router.post("/api/reservations/{rid}/checkin", response_model=ReservationDetail)
@@ -377,7 +395,7 @@ def checkin(
             "mode": mode,
             "usage_ends_at": str(r.usage_ends_at),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     db.commit()
     db.refresh(r)
@@ -418,7 +436,7 @@ def checkout(
         actor_id=current_user.id,
         target_type="reservation",
         target_id=r.id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip(request),
     )
     db.commit()
     db.refresh(r)
