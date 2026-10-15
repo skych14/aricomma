@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { operationApi, reportApi, reservationApi, verificationApi } from '../../api/index.js'
+import AppFooter from '../../components/AppFooter.jsx'
 import PenaltyNotice from '../../components/PenaltyNotice.jsx'
 import {
   Button, Card, HomeTile, LoadingBox, Notice,
@@ -117,7 +118,7 @@ export default function HomePage() {
   const reviewing = records.some(r => r.status === 'pending')
   const rejected = !reviewing && latestRecord?.status === 'rejected'
 
-  const footer = <p className="home-footer">안양대학교 학우실 체크인 시스템</p>
+  const footer = <AppFooter />
   const moreButton = (
     <Button variant="secondary" block onClick={() => navigate('/more')}>더보기</Button>
   )

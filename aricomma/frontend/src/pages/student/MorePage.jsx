@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { reservationApi, verificationApi } from '../../api/index.js'
+import AppFooter from '../../components/AppFooter.jsx'
 import Logo from '../../components/Logo.jsx'
 import { Button, ConfirmDialog, MenuItem, StatusBadge } from '../../components/ui/index.js'
 import {
@@ -95,7 +96,7 @@ export default function MorePage() {
         </MenuItem>
       </nav>
 
-      <p className="home-footer">안양대학교 학우실 체크인 시스템</p>
+      <AppFooter />
 
       {confirmingLogout && (
         <ConfirmDialog

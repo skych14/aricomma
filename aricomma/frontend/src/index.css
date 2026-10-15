@@ -660,6 +660,14 @@ tr:hover td { background: var(--surface-tint); }
 }
 /* 더보기 화면은 지금처럼 위에서부터 — 문구만 아래에 붙인다 */
 .more-page .home-footer { margin-top: auto; }
+/* 오픈채팅방 링크 — 밑줄로 링크임을 보이고, 위아래 여백으로 누를 자리를 44px 이상 확보.
+   긴 주소가 좁은 화면 밖으로 넘치지 않게 아무 데서나 줄바꿈 허용 */
+.home-footer p { word-break: keep-all; }
+.home-footer-link {
+  display: inline-block; min-height: 44px; padding: 12px var(--space-2);
+  color: var(--brand-text); text-decoration: underline; text-underline-offset: 2px;
+  overflow-wrap: anywhere; max-width: 100%;
+}
 
 /* ── 더보기 화면 (피그마 "더보기 화면") ──────────────────── */
 /* 세로 flex 안에서 버튼이 가로로 늘어나지 않게 */
