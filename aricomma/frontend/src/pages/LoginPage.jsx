@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import AppFooter from '../components/AppFooter.jsx'
 import Logo from '../components/Logo.jsx'
 import { Button, Notice, PasswordField, TextField } from '../components/ui/index.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -93,6 +94,8 @@ export default function LoginPage() {
         <div className="text-center mt-4 text-muted">
           계정이 없으신가요? <Link to="/register">회원가입</Link>
         </div>
+
+        <AppFooter />
       </div>
     </div>
   )
