@@ -194,6 +194,13 @@ tr:hover td { background: var(--surface-tint); }
 .auth-logo span { font-size: var(--fs-logo); }
 .auth-sub { text-align: center; color: var(--ink-muted); font-size: var(--fs-body-sm); margin-bottom: var(--space-5); }
 
+/* 로그인 화면만 — 카드는 가운데, 오픈채팅 푸터는 화면 맨 아래.
+   align-items:center 대신 카드의 margin:auto로 가운데에 두므로, 카드가 화면보다
+   길면 auto가 0이 되어 위에서부터 스크롤되고 푸터는 카드 아래로 이어진다. */
+.auth-wrap--login { flex-direction: column; align-items: stretch; justify-content: flex-start; }
+.auth-wrap--login .auth-box { margin: auto; }
+.auth-wrap--login .home-footer { flex-shrink: 0; }
+
 /* 좁은 화면에서는 좌우 여백을 --space-4까지 줄인다 */
 @media (max-width: 400px) {
   .auth-box { padding-left: var(--space-4); padding-right: var(--space-4); }

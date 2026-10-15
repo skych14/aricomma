@@ -68,7 +68,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-wrap">
+    <div className="auth-wrap auth-wrap--login">
       <div className="auth-box">
         <div className="auth-logo"><Logo variant="mark" size={72} wordmark /></div>
         <div className="auth-sub">안양대학교 학우실 예약 서비스</div>
@@ -94,9 +94,9 @@ export default function LoginPage() {
         <div className="text-center mt-4 text-muted">
           계정이 없으신가요? <Link to="/register">회원가입</Link>
         </div>
-
-        <AppFooter />
       </div>
+
+      <AppFooter />
     </div>
   )
 }
